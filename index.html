@@ -1,0 +1,1471 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>渊鉴 AbyssLens · 海洋装备数据诊断平台</title>
+  <style>
+    :root {
+      --ink: #172234;
+      --muted: #687386;
+      --line: #d8e0e2;
+      --paper: #f5f7f6;
+      --surface: #ffffff;
+      --teal: #087f7b;
+      --teal-dark: #075e60;
+      --teal-soft: #d9efeb;
+      --coral: #e06a56;
+      --yellow: #d8a336;
+      --blue: #4779a8;
+      --shadow: 0 12px 32px rgba(23, 34, 52, .08);
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font: 14px/1.5 "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 3px solid rgba(8, 127, 123, .22);
+      outline-offset: 2px;
+    }
+
+    .app-shell { min-height: 100vh; }
+    .topbar {
+      align-items: center;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 24px;
+      justify-content: space-between;
+      min-height: 72px;
+      padding: 14px 28px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand { align-items: center; display: flex; gap: 12px; min-width: 210px; }
+    .brand-mark {
+      align-items: center;
+      background: var(--ink);
+      border-radius: 8px;
+      color: #fff;
+      display: inline-flex;
+      font-size: 13px;
+      font-weight: 800;
+      height: 34px;
+      justify-content: center;
+      letter-spacing: .8px;
+      width: 46px;
+    }
+    .brand strong { display: block; font-size: 17px; line-height: 1.1; }
+    .brand small { color: var(--muted); display: block; font-size: 11px; margin-top: 3px; }
+    .topbar-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end; }
+    .topbar-actions a.button { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
+    .status-badge {
+      align-items: center;
+      color: var(--muted);
+      display: inline-flex;
+      font-size: 12px;
+      gap: 7px;
+      margin-right: 6px;
+      white-space: nowrap;
+    }
+    .status-badge::before {
+      background: #aab6b7;
+      border-radius: 50%;
+      content: "";
+      display: inline-block;
+      height: 7px;
+      width: 7px;
+    }
+    .status-badge.ready { color: var(--teal-dark); }
+    .status-badge.ready::before { background: var(--teal); }
+    .button {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      color: var(--ink);
+      min-height: 36px;
+      padding: 0 13px;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
+    }
+    .button:hover { background: #f1f6f5; border-color: #a9c4c1; }
+    .button:active { transform: translateY(1px); }
+    .button.primary { background: var(--teal); border-color: var(--teal); color: #fff; font-weight: 600; }
+    .button.primary:hover { background: var(--teal-dark); border-color: var(--teal-dark); }
+    .button.subtle { background: transparent; border-color: transparent; color: var(--muted); }
+    .button.subtle:hover { background: #edf3f2; border-color: #edf3f2; color: var(--ink); }
+    .file-input { display: none; }
+
+    .workspace { display: grid; grid-template-columns: 292px minmax(0, 1fr); min-height: calc(100vh - 72px); }
+    .sidebar {
+      background: #edf2f1;
+      border-right: 1px solid var(--line);
+      padding: 22px 18px;
+    }
+    .sidebar-heading { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 12px; text-transform: uppercase; }
+    .side-section { border-bottom: 1px solid #d6dfdf; margin-bottom: 20px; padding-bottom: 19px; }
+    .side-section:last-child { border-bottom: 0; }
+    .dropzone {
+      background: var(--surface);
+      border: 1px dashed #a9c1bf;
+      border-radius: var(--radius);
+      color: var(--muted);
+      cursor: pointer;
+      padding: 17px 14px;
+      text-align: center;
+      transition: background .16s ease, border-color .16s ease;
+    }
+    .dropzone:hover, .dropzone.dragover { background: #f8fcfb; border-color: var(--teal); }
+    .dropzone strong { color: var(--ink); display: block; font-size: 13px; margin-bottom: 4px; }
+    .dropzone span { display: block; font-size: 12px; }
+    .dropzone em { color: var(--teal-dark); display: block; font-size: 11px; font-style: normal; margin-top: 9px; }
+    .file-meta { color: var(--muted); font-size: 12px; margin-top: 9px; overflow-wrap: anywhere; }
+    .folder-panel { border-top: 1px solid #d6dfdf; margin-top: 16px; padding-top: 14px; }
+    .folder-panel[hidden] { display: none; }
+    .folder-panel-head { align-items: center; display: flex; gap: 8px; justify-content: space-between; margin-bottom: 7px; }
+    .folder-panel-head strong { font-size: 12px; }
+    .folder-panel-head span { color: var(--muted); font-size: 11px; text-align: right; }
+    .task-select { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); min-height: 35px; padding: 0 8px; width: 100%; }
+    .task-select:disabled { color: #9aa5a6; }
+    .folder-clear { color: var(--muted); font-size: 11px; padding: 0 5px; }
+    .field { margin-top: 12px; }
+    .field:first-child { margin-top: 0; }
+    .field label { color: var(--muted); display: flex; font-size: 12px; justify-content: space-between; margin-bottom: 5px; }
+    .field select, .field input[type="number"] {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--ink);
+      min-height: 34px;
+      padding: 0 9px;
+      width: 100%;
+    }
+    .field select:disabled { color: #9aa5a6; }
+    .toggle-row { align-items: center; color: var(--ink); display: flex; font-size: 12px; gap: 8px; margin: 12px 0 0; }
+    .toggle-row input { accent-color: var(--teal); height: 15px; margin: 0; width: 15px; }
+    .hint { color: var(--muted); font-size: 11px; margin: 8px 0 0; }
+
+    .main { min-width: 0; padding: 25px 29px 44px; }
+    .page-head { align-items: flex-end; display: flex; gap: 20px; justify-content: space-between; margin-bottom: 20px; }
+    .page-head h1 { font-size: 24px; letter-spacing: -.02em; margin: 0; }
+    .page-head p { color: var(--muted); margin: 6px 0 0; }
+    .page-head-right { color: var(--muted); font-size: 12px; text-align: right; }
+    .view-tabs { align-items: center; border-bottom: 1px solid var(--line); display: flex; gap: 4px; margin-bottom: 18px; }
+    .tab {
+      background: transparent;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      margin-bottom: -1px;
+      padding: 9px 12px 10px;
+    }
+    .tab:hover { color: var(--ink); }
+    .tab.active { border-bottom-color: var(--teal); color: var(--teal-dark); font-weight: 700; }
+    .summary-grid { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 19px; }
+    .summary-item {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-height: 76px;
+      padding: 13px 14px;
+    }
+    .summary-item span { color: var(--muted); display: block; font-size: 11px; margin-bottom: 5px; }
+    .summary-item strong { display: block; font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .summary-item em { color: var(--muted); display: block; font-size: 11px; font-style: normal; margin-top: 2px; }
+    .charts-grid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      min-width: 0;
+      padding: 15px 16px 12px;
+      position: relative;
+    }
+    .chart-card.wide { grid-column: 1 / -1; }
+    .chart-card-head { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; }
+    .chart-card h2 { font-size: 14px; margin: 0; }
+    .chart-card .chart-subtitle { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .chart-stat { color: var(--muted); font-size: 11px; text-align: right; white-space: nowrap; }
+    .canvas-wrap { height: 286px; margin-top: 9px; position: relative; width: 100%; }
+    .canvas-wrap canvas { display: block; height: 100%; width: 100%; }
+    .chart-tooltip {
+      background: var(--ink);
+      border-radius: 5px;
+      color: #fff;
+      font-size: 11px;
+      left: 0;
+      max-width: 190px;
+      opacity: 0;
+      padding: 7px 9px;
+      pointer-events: none;
+      position: absolute;
+      top: 0;
+      transform: translate(8px, 8px);
+      transition: opacity .1s ease;
+      white-space: nowrap;
+      z-index: 2;
+    }
+    .chart-tooltip.show { opacity: .96; }
+    .chart-legend { align-items: center; color: var(--muted); display: flex; font-size: 11px; gap: 6px; margin-top: 4px; }
+    .legend-dot { border-radius: 50%; display: inline-block; height: 7px; width: 7px; }
+    .empty-state {
+      align-items: center;
+      background: var(--surface);
+      border: 1px dashed #b8c7c6;
+      border-radius: var(--radius);
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      grid-column: 1 / -1;
+      justify-content: center;
+      min-height: 300px;
+      padding: 28px;
+      text-align: center;
+    }
+    .empty-state strong { color: var(--ink); font-size: 15px; }
+    .data-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); margin-top: 16px; overflow: hidden; }
+    .data-panel-head { align-items: center; display: flex; justify-content: space-between; padding: 14px 16px; }
+    .data-panel-head h2 { font-size: 14px; margin: 0; }
+    .data-panel-head span { color: var(--muted); font-size: 11px; }
+    .table-scroll { max-height: 265px; overflow: auto; }
+    table { border-collapse: collapse; min-width: 100%; table-layout: auto; white-space: nowrap; }
+    th, td { border-top: 1px solid #e8eded; font-size: 11px; padding: 9px 12px; text-align: left; }
+    th { background: #f7f9f8; color: var(--muted); font-weight: 600; position: sticky; top: 0; z-index: 1; }
+    td { color: #364256; }
+    tr:hover td { background: #f7fbfa; }
+    .footer-note { color: var(--muted); font-size: 11px; margin-top: 18px; text-align: right; }
+    .toast { background: var(--ink); border-radius: 7px; bottom: 22px; box-shadow: var(--shadow); color: #fff; font-size: 12px; opacity: 0; padding: 10px 13px; pointer-events: none; position: fixed; right: 24px; transform: translateY(8px); transition: opacity .18s ease, transform .18s ease; z-index: 20; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { background: #a8463b; }
+    [hidden] { display: none !important; }
+    .diagnostic-panel { background: white; border: 1px solid var(--line); border-radius: 10px; margin: 16px 0; padding: 18px; }
+    .diagnostic-panel h2 { margin: 0; font-size: 16px; }
+    .diagnostic-panel h3 { margin: 16px 0 8px; font-size: 13px; }
+    .diagnostic-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+    .diagnostic-head span, .source-note, .diagnostic-empty { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .facts-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+    .fact { background: #f5f8f7; border-radius: 6px; padding: 10px 12px; min-width: 0; }
+    .fact dt { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+    .fact dd { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+    .fact small { font-size: 11px; color: var(--muted); font-weight: normal; display: block; margin-top: 3px; }
+    .fact.alert { background: #fff0ec; border: 1px solid #ebc1b9; }
+    .notice { color: #8c3b29; background: #fff4ef; border-left: 3px solid #ba492e; padding: 9px 12px; font-size: 12px; margin: 8px 0; }
+    .phase-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0; list-style: none; }
+    .phase-list li { border-left: 2px solid #8abdb6; padding: 6px 10px; font-size: 12px; }
+    .phase-list time { display: block; color: var(--muted); }
+    .diagnostic-panel details summary { cursor: pointer; padding: 8px 0; font-size: 12px; }
+    .diagnostic-panel select { max-width: 100%; }
+    .source-note { margin: 6px 0; }
+    .chart-legend { flex-wrap: wrap; }
+    .chart-tooltip { white-space: pre-line; max-width: 230px; overflow-wrap: anywhere; }
+    .chart-method { color: var(--muted); font-size: 12px; line-height: 1.7; margin-top: 10px; }
+    .legend-level { color: #8055aa; }
+    .phase-legend { display: inline-flex; align-items: center; gap: 5px; margin-right: 8px; }
+    .phase-swatch { display: inline-block; width: 22px; border-top: 2px solid; }
+    .view-tabs { flex-wrap: wrap; }
+    .mot-chart .canvas-wrap { height: 235px; }
+    .mot-chart .chart-method { margin-bottom: 0; }
+    #motPanel .facts-grid { margin-bottom: 0; }
+    .page-head-right { max-width: 48%; overflow-wrap: anywhere; }
+    @media (max-width: 980px) { .facts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 730px) {
+      .topbar-actions { flex-wrap: wrap; }
+      .page-head-right { max-width: 100%; }
+      .phase-list { grid-template-columns: 1fr; }
+      .diagnostic-panel { padding: 12px; }
+    }
+
+    @media (max-width: 980px) {
+      .topbar { padding: 13px 18px; }
+      .status-badge { display: none; }
+      .workspace { grid-template-columns: 250px minmax(0, 1fr); }
+      .main { padding: 22px 18px 36px; }
+      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 730px) {
+      .topbar { align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+      .topbar-actions { width: 100%; }
+      .topbar-actions .button { flex: 1; }
+      .workspace { display: block; }
+      .sidebar { border-bottom: 1px solid var(--line); border-right: 0; padding: 17px 18px 4px; }
+      .side-section { margin-bottom: 17px; padding-bottom: 16px; }
+      .sidebar .side-section:nth-child(2), .sidebar .side-section:nth-child(3) { display: inline-block; vertical-align: top; width: calc(50% - 9px); }
+      .sidebar .side-section:nth-child(2) { margin-right: 14px; }
+      .main { padding: 20px 14px 30px; }
+      .page-head { align-items: flex-start; display: block; }
+      .page-head-right { margin-top: 7px; text-align: left; }
+      .charts-grid { grid-template-columns: 1fr; }
+      .chart-card.wide { grid-column: auto; }
+      .canvas-wrap { height: 250px; }
+    }
+    @media (max-width: 470px) {
+      .brand { min-width: 0; }
+      .brand strong { font-size: 15px; }
+      .topbar-actions { gap: 6px; }
+      .topbar-actions .button { font-size: 12px; padding: 0 8px; }
+      .summary-grid { gap: 8px; }
+      .summary-item { padding: 11px; }
+      .summary-item strong { font-size: 15px; }
+      .sidebar .side-section:nth-child(2), .sidebar .side-section:nth-child(3) { display: block; width: auto; }
+      .sidebar .side-section:nth-child(2) { margin-right: 0; }
+    }
+  </style>
+  <link rel="stylesheet" href="ctd-log-panel.css">
+  <link rel="stylesheet" href="abysslens-ui.css">
+  <link rel="stylesheet" href="ctd-chart-tools.css">
+  <link rel="stylesheet" href="ctd-replay.css">
+</head>
+<body class="analysis-page">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">渊鉴</span>
+        <div><strong>渊鉴 · AbyssLens</strong><small>海洋装备数据诊断平台</small></div>
+      </div>
+      <div class="topbar-actions">
+        <span class="status-badge" id="statusBadge">等待数据</span>
+        <button class="button subtle" id="demoButton" type="button">示例数据</button>
+        <a class="button" id="logsLink" href="ctd-logs.html" target="_blank" rel="noopener">当天日志 ↗</a>
+        <button class="button" id="exportButton" type="button">导出 PNG</button>
+        <button class="button" id="openButton" type="button">导入 CSV</button>
+        <button class="button primary" id="folderButton" type="button">导入文件夹</button>
+        <input class="file-input" id="fileInput" type="file" accept=".csv,.txt,text/csv,text/plain">
+        <input class="file-input" id="folderInput" type="file" webkitdirectory directory multiple>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <section class="side-section">
+          <h2 class="sidebar-heading">数据源</h2>
+          <div class="dropzone" id="dropzone" role="button" tabindex="0">
+            <strong>添加 CSV 文件</strong>
+            <span>CSV / TXT</span>
+          </div>
+          <div class="file-meta" id="fileMeta">当前显示内置示例数据</div>
+          <div class="folder-panel" id="folderPanel" hidden>
+            <div class="folder-panel-head"><strong>文件夹任务</strong><span id="folderMeta">—</span></div>
+            <select class="task-select" id="taskSelect" aria-label="选择 CTD 任务" disabled></select>
+            <button class="button subtle folder-clear" id="clearFolderButton" type="button">清空文件夹</button>
+          </div>
+        </section>
+
+        <section class="side-section">
+          <h2 class="sidebar-heading">字段映射</h2>
+          <div class="field"><label for="timeColumn">时间列</label><select id="timeColumn"></select></div>
+          <div class="field"><label for="pressureColumn">压力 / 深度列</label><select id="pressureColumn"></select></div>
+          <div class="field"><label for="temperatureColumn">温度列</label><select id="temperatureColumn"></select></div>
+          <div class="field"><label for="salinityColumn">盐度列</label><select id="salinityColumn"></select></div>
+        </section>
+
+        <section class="side-section">
+          <h2 class="sidebar-heading">图表选项</h2>
+          <label class="toggle-row"><input id="invertDepth" type="checkbox" checked>压力 / 深度向下增加</label>
+          <label class="toggle-row"><input id="showPoints" type="checkbox">显示采样点</label>
+          <label class="toggle-row"><input id="showLevel" type="checkbox" checked>叠加 level 测量点</label>
+        </section>
+      </aside>
+
+      <main class="main">
+        <div class="page-head">
+          <div>
+            <h1 id="pageTitle">CTD 剖面</h1>
+            <p id="pageSubtitle">温度、盐度与压力数据的快速浏览</p>
+          </div>
+          <div class="page-head-right" id="pageFileLabel">示例数据 · 120 个采样点</div>
+        </div>
+
+        <nav class="view-tabs" aria-label="图表视图">
+          <button class="tab active" data-mode="profile" type="button">深度剖面</button>
+          <button class="tab" data-mode="timeseries" type="button">时间序列</button>
+          <button class="tab" data-mode="velocity" type="button">速度—深度</button>
+          <button class="tab" data-mode="mot" type="button">电机分析</button>
+          <button class="tab" data-mode="replay" type="button">浮标仿真</button>
+        </nav>
+
+        <section class="summary-grid" aria-label="数据摘要">
+          <div class="summary-item"><span>采样点</span><strong id="statRows">—</strong><em id="statRowsHint">有效记录</em></div>
+          <div class="summary-item"><span>压力 / 深度</span><strong id="statPressure">—</strong><em id="pressureUnit">dbar</em></div>
+          <div class="summary-item"><span>温度范围</span><strong id="statTemperature">—</strong><em>°C</em></div>
+          <div class="summary-item"><span>盐度范围</span><strong id="statSalinity">—</strong><em>psu</em></div>
+        </section>
+
+        <section class="diagnostic-panel" id="motPanel" aria-label="mot 电机数据" hidden>
+          <div class="diagnostic-head"><h2>浮力电机 · mot</h2><span id="motStatus"></span></div>
+          <p class="source-note" id="motSource"></p>
+          <select class="task-select" id="motSelect" aria-label="mot 数据来源" hidden></select>
+          <div id="motContent"></div>
+        </section>
+        <section class="charts-grid" id="chartsGrid"></section>
+        <section class="diagnostic-panel" id="motDetailsPanel" hidden>
+          <details><summary>查看全部电机记录</summary><div id="motDetails"></div></details>
+        </section>
+
+        <section class="diagnostic-panel" id="keydataPanel" aria-label="keydata 任务概览">
+          <div class="diagnostic-head"><h2>任务概览 · keydata</h2><span id="keydataStatus"></span></div>
+          <p class="source-note" id="keydataSource"></p>
+          <select class="task-select" id="keydataSelect" aria-label="keydata 数据来源" hidden></select>
+          <div id="keydataContent"></div>
+        </section>
+        <section class="diagnostic-panel" id="levelPanel" aria-label="level 任务阶段">
+          <div class="diagnostic-head"><h2>任务阶段 · level</h2><span id="levelStatus"></span></div>
+          <p class="source-note" id="levelSource"></p>
+          <div id="levelContent"></div>
+        </section>
+
+        <section class="data-panel">
+          <div class="data-panel-head"><h2>数据预览</h2><span id="tableHint">显示前 12 行</span></div>
+          <div class="table-scroll"><table><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table></div>
+        </section>
+        <div class="footer-note"><span id="workspaceStatus">正在准备页面间共享…</span><br>数据只在本机浏览器处理 · 文件不会上传</div>
+      </main>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="ctd-data.js"></script>
+  <script src="ctd-gradient.js"></script>
+  <script src="ctd-velocity.js"></script>
+  <script src="ctd-phases.js"></script>
+  <script src="ctd-mot.js"></script>
+  <script src="ctd-diagnostics.js"></script>
+  <script src="ctd-workspace.js"></script>
+  <script src="ctd-chart-viewport.js"></script>
+  <script src="ctd-chart-interactions.js"></script>
+  <script src="ctd-replay.js"></script>
+  <script src="ctd-replay-viewer.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const state = {
+        fileName: "内置示例",
+        encoding: "UTF-8",
+        headers: [],
+        rawRows: [],
+        rows: [],
+        columns: { time: -1, pressure: -1, temperature: -1, salinity: -1 },
+        mode: "profile",
+        exportTitle: "CTD 剖面",
+        folder: null,
+        selectedRecordId: "",
+        keydataIndex: 0,
+        levelRows: [],
+        velocity: null,
+        phases: null,
+        motIndex: 0,
+        mot: null,
+        singleMot: null,
+        importVersion: 0
+      };
+
+      const els = {
+        fileInput: document.getElementById("fileInput"),
+        folderInput: document.getElementById("folderInput"),
+        openButton: document.getElementById("openButton"),
+        folderButton: document.getElementById("folderButton"),
+        demoButton: document.getElementById("demoButton"),
+        exportButton: document.getElementById("exportButton"),
+        dropzone: document.getElementById("dropzone"),
+        fileMeta: document.getElementById("fileMeta"),
+        folderPanel: document.getElementById("folderPanel"),
+        folderMeta: document.getElementById("folderMeta"),
+        taskSelect: document.getElementById("taskSelect"),
+        clearFolderButton: document.getElementById("clearFolderButton"),
+        statusBadge: document.getElementById("statusBadge"),
+        timeColumn: document.getElementById("timeColumn"),
+        pressureColumn: document.getElementById("pressureColumn"),
+        temperatureColumn: document.getElementById("temperatureColumn"),
+        salinityColumn: document.getElementById("salinityColumn"),
+        invertDepth: document.getElementById("invertDepth"),
+        showPoints: document.getElementById("showPoints"),
+        showLevel: document.getElementById("showLevel"),
+        keydataSelect: document.getElementById("keydataSelect"),
+        motPanel: document.getElementById('motPanel'),
+        motSelect: document.getElementById('motSelect'),
+        pageTitle: document.getElementById("pageTitle"),
+        pageSubtitle: document.getElementById("pageSubtitle"),
+        pageFileLabel: document.getElementById("pageFileLabel"),
+        chartsGrid: document.getElementById("chartsGrid"),
+        tableHead: document.getElementById("tableHead"),
+        tableBody: document.getElementById("tableBody"),
+        tableHint: document.getElementById("tableHint"),
+        statRows: document.getElementById("statRows"),
+        statRowsHint: document.getElementById("statRowsHint"),
+        statPressure: document.getElementById("statPressure"),
+        statTemperature: document.getElementById("statTemperature"),
+        statSalinity: document.getElementById("statSalinity"),
+        toast: document.getElementById("toast"),
+        workspaceStatus: document.getElementById("workspaceStatus")
+      };
+
+      let pendingWorkspaceSelection = null;
+      const workspace = CtdWorkspace.createClient({
+        onBatch: receiveWorkspaceBatch,
+        onSelection: applyWorkspaceSelection,
+        onStatus: status => { els.workspaceStatus.textContent = status.message; }
+      });
+
+      const palette = {
+        temperature: "#e06a56",
+        salinity: "#087f7b",
+        pressure: "#4779a8",
+        relation: "#d8a336"
+      };
+      const chartInteractions = CtdChartInteractions.create({ formatTime: formatDate });
+      let chartTimeDomain = null;
+      let replayDataSource = null;
+      const replayViewer = CtdReplayViewer.create(els.chartsGrid, {
+        depthNote: () => state.depthUnit === 'dbar'
+          ? `压力按 UNESCO 1983 换算为米；纬度 ${formatNumber(state.velocity?.latitude, 4)}°${state.velocity?.assumedLatitude ? '（缺少有效定位，使用假设值）' : '（keydata）'}。`
+          : state.depthUnit === 'm' ? '使用 CSV 中标注为米的深度。' : '深度单位未知。'
+      });
+
+      function buildDemoRows() {
+        const rows = [];
+        for (let i = 0; i < 120; i += 1) {
+          const pressure = -0.4 + i * 1.48 + Math.sin(i / 8) * 0.42;
+          const temperature = 22.55 - pressure * 0.043 + Math.sin(i / 12) * 0.12;
+          const salinity = 0.21 + pressure * 0.00225 + Math.cos(i / 15) * 0.011;
+          const time = new Date(Date.UTC(2026, 8, 4, 2, 1, 29) + i * 30000);
+          const pad = (v, n = 2) => String(v).padStart(n, "0");
+          const stamp = `${time.getUTCFullYear()}-${pad(time.getUTCMonth() + 1)}-${pad(time.getUTCDate())}_${pad(time.getUTCHours())}:${pad(time.getUTCMinutes())}:${pad(time.getUTCSeconds())}.000`;
+          rows.push([stamp, temperature.toFixed(3), pressure.toFixed(2), salinity.toFixed(3)]);
+        }
+        return {
+          headers: ["北京时间", "温度(℃)", "深度(dbar)", "盐度(psu)"],
+          rows,
+          encoding: "UTF-8"
+        };
+      }
+
+      function decodeBytes(buffer) {
+        return CtdData.decodeBytes(buffer);
+      }
+
+      function parseDelimited(text) {
+        return CtdData.parseDelimited(text);
+      }
+
+      function normalizeHeader(header) {
+        return String(header || "").toLowerCase().replace(/[\s_\-\/]/g, "");
+      }
+
+      function findColumn(headers, type) {
+        const rules = {
+          time: ["北京时间", "格林威治时间", "时间", "timestamp", "datetime", "date", "time"],
+          pressure: ["深度(dbar)", "压力(dbar)", "压强(dbar)", "深度", "压力", "压强", "pressure", "pres", "dbar", "depth"],
+          temperature: ["温度(℃)", "温度", "摄氏度", "temperature", "temp", "degc", "celsius", "℃", "°c"],
+          salinity: ["盐度(psu)", "盐度", "salinity", "psu", "盐"]
+        };
+        const aliases = rules[type];
+        let best = { index: -1, score: 0 };
+        headers.forEach((header, index) => {
+          const normalized = normalizeHeader(header);
+          aliases.forEach((alias, aliasIndex) => {
+            const needle = normalizeHeader(alias);
+            if (!needle || !normalized.includes(needle)) return;
+            const score = (aliases.length - aliasIndex) * (normalized === needle ? 3 : 1);
+            if (score > best.score) best = { index, score };
+          });
+        });
+        return best.index;
+      }
+
+      function numeric(value) {
+        const cleaned = String(value ?? "").trim().replace(/,/g, "");
+        if (!cleaned || /^(na|n\/a|null|nan|none)$/i.test(cleaned)) return null;
+        const valueNumber = Number(cleaned);
+        if (!Number.isFinite(valueNumber) || Math.abs(valueNumber) >= 99990) return null;
+        return valueNumber;
+      }
+
+      function parseDate(value) {
+        const header = state.headers[state.columns.time] || "";
+        return CtdData.parseTime(value, /格林威治|UTC|GMT/i.test(header));
+      }
+
+      function prepareRows() {
+        state.rows = state.rawRows.map((values, index) => {
+          const timeRaw = state.columns.time >= 0 ? values[state.columns.time] : "";
+          const pressure = state.columns.pressure >= 0 ? numeric(values[state.columns.pressure]) : null;
+          const temperature = state.columns.temperature >= 0 ? numeric(values[state.columns.temperature]) : null;
+          const salinity = state.columns.salinity >= 0 ? numeric(values[state.columns.salinity]) : null;
+          return {
+            values,
+            index,
+            timeRaw,
+            time: parseDate(timeRaw),
+            pressure,
+            temperature,
+            salinity
+          };
+        });
+      }
+
+      function formatDateCode(code) {
+        const value = String(code || "");
+        if (!/^\d{6}$/.test(value)) return value || "未分类日期";
+        return `20${value.slice(0, 2)}-${value.slice(2, 4)}-${value.slice(4, 6)} · ${value}`;
+      }
+
+      function asFileEntries(fileList) {
+        return Array.from(fileList || []).map(item => {
+          if (item && item.file) return { file: item.file, name: item.name || item.file.name, relativePath: item.relativePath || item.name || item.file.name };
+          return { file: item, name: item.name, relativePath: item.webkitRelativePath || item.name };
+        });
+      }
+
+      function sharedFileEntries(fileList) {
+        return asFileEntries(fileList).filter(entry => /\.csv$/i.test(entry.name) || /_(?:dlog|tlog)_.*\.(?:txt|log|dlog|tlog)$/i.test(entry.name));
+      }
+
+      function publishImport(fileList, importMode) {
+        const entries = sharedFileEntries(fileList);
+        const firstPath = entries[0]?.relativePath || '';
+        const folderName = firstPath.split(/[\\/]+/).filter(Boolean)[0] || (importMode === 'folder' ? '已选文件夹' : '单独选取');
+        pendingWorkspaceSelection = null;
+        workspace.replace(entries, { source: 'manual', importMode, folderName });
+      }
+
+      function clearCtdForBatch(message) {
+        chartInteractions.reset();
+        state.singleMot = null;
+        state.motIndex = 0;
+        state.folder = null;
+        state.selectedRecordId = '';
+        state.fileName = '当前批次无 CTD 数据';
+        state.encoding = '';
+        state.headers = [];
+        state.rawRows = [];
+        state.columns = { time: -1, pressure: -1, temperature: -1, salinity: -1 };
+        renderFolderTasks();
+        refreshColumnSelectors();
+        updateAll();
+        showToast(message || '当前共享批次没有可绘制的 CTD 数据', true);
+      }
+
+      function taskContext(record) {
+        if (!record || !/^\d{6}$/.test(record.date)) return null;
+        const [parent, device] = JSON.parse(record.taskKey), parts = parent.split('/');
+        if (parts[parts.length - 1] === record.date) parts.pop();
+        return {
+          day: `20${record.date.slice(0, 2)}-${record.date.slice(2, 4)}-${record.date.slice(4, 6)}`,
+          scopeKey: JSON.stringify([parts.join('/'), device]),
+          recordId: record.id
+        };
+      }
+
+      function publishTaskContext(record) {
+        const context = taskContext(record);
+        if (context) workspace.select(context);
+      }
+
+      function receiveWorkspaceBatch(batch) {
+        pendingWorkspaceSelection = null;
+        if (batch.meta?.source === 'server') {
+          loadServerCatalog(false);
+          return;
+        }
+        const entries = asFileEntries(batch.entries);
+        if (batch.meta?.importMode === 'files') {
+          const csvEntries = entries.filter(entry => /\.csv$/i.test(entry.name));
+          if (csvEntries.length) readFiles(csvEntries);
+          else { state.importVersion += 1; clearCtdForBatch('新导入批次只有日志，CTD 视图已清空。'); }
+        } else readFolder(entries);
+      }
+
+      function applyWorkspaceSelection(context) {
+        pendingWorkspaceSelection = context || null;
+        if (!state.folder || !context?.recordId) return;
+        const record = state.folder.records.find(item => item.id === context.recordId);
+        if (record && record.id !== state.selectedRecordId) selectFolderRecord(record, false, false);
+        if (record) pendingWorkspaceSelection = null;
+      }
+
+      function renderFolderTasks() {
+        const folder = state.folder;
+        if (!folder || !folder.records.length) {
+          els.folderPanel.hidden = true;
+          els.taskSelect.innerHTML = "";
+          els.taskSelect.disabled = true;
+          return;
+        }
+        els.folderPanel.hidden = false;
+        els.folderMeta.textContent = `${folder.folderName} · ${folder.taskCount} 个剖面 · CTD ${folder.records.length} / keydata ${folder.keydataCount || 0} / level ${folder.levelCount || 0} / mot ${folder.motCount || 0}`;
+        els.taskSelect.innerHTML = "";
+        const groups = new Map();
+        folder.records.forEach((record) => {
+          if (!groups.has(record.date)) groups.set(record.date, []);
+          groups.get(record.date).push(record);
+        });
+        Array.from(groups.keys()).sort((a, b) => String(b).localeCompare(String(a))).forEach((date) => {
+          const group = document.createElement("optgroup");
+          group.label = formatDateCode(date);
+          groups.get(date).forEach((record) => {
+            const option = document.createElement("option");
+            option.value = record.id;
+            const interval = record.interval == null ? "间隔未知" : `间隔 ${record.interval}`;
+            option.textContent = `剖面 ${record.profile} · ${interval} · ${record.rowCount} 点${/副本|copy/i.test(record.name) ? ' · 副本' : ''}`;
+            option.title = record.relativePath;
+            group.appendChild(option);
+          });
+          els.taskSelect.appendChild(group);
+        });
+        els.taskSelect.disabled = false;
+        els.taskSelect.value = state.selectedRecordId || folder.records[0].id;
+      }
+
+      function selectFolderRecord(record, notify = true, publish = true) {
+        if (!record) return;
+        state.selectedRecordId = record.id;
+        state.keydataIndex = 0;
+        state.motIndex = 0;
+        state.singleMot = null;
+        if (els.taskSelect.value !== record.id) els.taskSelect.value = record.id;
+        setDataset(record.dataset, record.name, record.encoding);
+        if (publish) publishTaskContext(record);
+        if (notify) showToast(`已切换到 ${record.date} · 剖面 ${record.profile}`);
+      }
+
+      function setDataset(dataset, fileName, encoding) {
+        chartInteractions.reset();
+        state.fileName = fileName;
+        state.encoding = encoding || dataset.encoding || "UTF-8";
+        state.headers = dataset.headers || [];
+        state.rawRows = dataset.rows || [];
+        state.columns = {
+          time: findColumn(state.headers, "time"),
+          pressure: findColumn(state.headers, "pressure"),
+          temperature: findColumn(state.headers, "temperature"),
+          salinity: findColumn(state.headers, "salinity")
+        };
+        refreshColumnSelectors();
+        updateAll();
+        const detected = [state.columns.temperature >= 0, state.columns.salinity >= 0, state.columns.pressure >= 0].filter(Boolean).length;
+        if (state.singleMot) showToast(`已载入 ${state.rawRows.length} 条电机记录；导入完整目录可对照 CTD`);
+        else if (detected < 2) showToast("已读取文件，但还需要手动映射字段", true);
+        else showToast(`已载入 ${state.rawRows.length} 行数据`);
+      }
+
+      function refreshColumnSelectors() {
+        const config = [
+          [els.timeColumn, "time"],
+          [els.pressureColumn, "pressure"],
+          [els.temperatureColumn, "temperature"],
+          [els.salinityColumn, "salinity"]
+        ];
+        config.forEach(([select, key]) => {
+          select.innerHTML = "";
+          const none = document.createElement("option");
+          none.value = "-1";
+          none.textContent = "不使用";
+          select.appendChild(none);
+          state.headers.forEach((header, index) => {
+            const option = document.createElement("option");
+            option.value = String(index);
+            option.textContent = header;
+            select.appendChild(option);
+          });
+          select.value = String(state.columns[key]);
+          select.disabled = !state.headers.length;
+        });
+      }
+
+      function valueList(key) {
+        return state.rows.map((row) => row[key]).filter((value) => Number.isFinite(value));
+      }
+
+      function extent(values) {
+        if (!values.length) return null;
+        return { min: Math.min(...values), max: Math.max(...values) };
+      }
+
+      function formatNumber(value, digits = 2) {
+        if (!Number.isFinite(value)) return "—";
+        return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: digits }).format(value);
+      }
+
+      function formatRange(values, digits = 2) {
+        const range = extent(values);
+        return range ? `${formatNumber(range.min, digits)} – ${formatNumber(range.max, digits)}` : "—";
+      }
+
+      function formatDate(timestamp, milliseconds = false) {
+        if (!Number.isFinite(timestamp)) return "";
+        return new Date(timestamp + 8 * 3600000).toISOString().slice(0, milliseconds ? 23 : 19).replace('T', ' ');
+      }
+
+      function axisPrecision(span) {
+        return Math.min(12, Math.max(0, 1 - Math.floor(Math.log10(span / 4))));
+      }
+
+      function validPoints(xKey, yKey, sortByY = false) {
+        const points = state.rows.map((row) => ({
+          ...row,
+          x: row[xKey],
+          y: row[yKey],
+          time: row.time,
+          timeRaw: row.timeRaw,
+          index: row.index,
+          source: 'CTD'
+        })).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+        if (sortByY) points.sort((a, b) => a.y - b.y);
+        return points;
+      }
+
+      function createChartCard(config) {
+        const card = document.createElement("article");
+        card.className = `chart-card${config.wide || state.mode === 'velocity' ? " wide" : ""}`;
+        if (config.motor) card.classList.add('mot-chart');
+        const header = document.createElement("div");
+        header.className = "chart-card-head";
+        const titleBlock = document.createElement("div");
+        titleBlock.innerHTML = `<h2>${config.title}</h2><div class="chart-subtitle">${config.subtitle}</div>`;
+        const stat = document.createElement("div");
+        stat.className = "chart-stat";
+        stat.textContent = config.stat || "";
+        header.append(titleBlock, stat);
+        const canvasWrap = document.createElement("div");
+        canvasWrap.className = "canvas-wrap";
+        const canvas = document.createElement("canvas");
+        canvas.setAttribute("aria-label", config.title);
+        const tooltip = document.createElement("div");
+        tooltip.className = "chart-tooltip";
+        canvasWrap.append(canvas, tooltip);
+        const legend = document.createElement("div");
+        legend.className = "chart-legend";
+        legend.innerHTML = `<span class="legend-dot" style="background:${config.color}"></span><span>${config.legend}</span>`;
+        if (config.overlays?.length) {
+          const label = document.createElement('span'); label.className = 'legend-level';
+          label.textContent = ` · ◆ level ${config.overlays.length} 点`; legend.append(label);
+        }
+        legend.dataset.baseText = legend.textContent;
+        (config.series || []).forEach(series => {
+          const item = document.createElement('span'); item.className = 'phase-legend'; item.dataset.phase = series.id; item.dataset.dash = series.dash.join(','); item.style.color = series.color;
+          const swatch = document.createElement('span'); swatch.className = 'phase-swatch'; swatch.style.borderTopStyle = series.dash.length ? 'dashed' : 'solid';
+          if (series.connect === false) { swatch.style.cssText = `width:6px;height:6px;border:0;border-radius:50%;background:${series.color}`; }
+          const label = document.createElement('span'); label.textContent = `${series.label} ${series.points.length} 点`;
+          item.append(swatch, label); legend.append(item);
+        });
+        canvas.setAttribute('aria-label', `${config.title}；${legend.textContent}`);
+        card.append(header, canvasWrap, legend);
+        if (config.method) {
+          const method = document.createElement('p'); method.className = 'chart-method'; method.textContent = config.method; card.append(method);
+        }
+        els.chartsGrid.appendChild(card);
+        drawChart(canvas, tooltip, config);
+        return card;
+      }
+
+      function drawChart(canvas, tooltip, config) {
+        const rect = canvas.getBoundingClientRect();
+        const width = Math.max(260, Math.floor(rect.width));
+        const height = Math.max(180, Math.floor(rect.height));
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        const ctx = canvas.getContext("2d");
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, width, height);
+        const margin = { top: 17, right: 18, bottom: 43, left: 60 };
+        const plot = { left: margin.left, top: margin.top, width: width - margin.left - margin.right, height: height - margin.top - margin.bottom };
+        const points = config.points;
+        const overlays = config.overlays || [];
+        const allPoints = [...points, ...overlays];
+        if (!allPoints.length) {
+          ctx.fillStyle = "#8a9697";
+          ctx.font = "12px Segoe UI, Microsoft YaHei, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(config.emptyText || "没有可绘制的数值", width / 2, height / 2);
+          return;
+        }
+        const xValues = allPoints.map((point) => point.x);
+        const yValues = allPoints.map((point) => point.y);
+        if (config.zeroLine) xValues.push(0);
+        let xMin = Math.min(...xValues); let xMax = Math.max(...xValues);
+        let yMin = Math.min(...yValues); let yMax = Math.max(...yValues);
+        if (config.xDomain) { xMin = config.xDomain.min; xMax = config.xDomain.max; }
+        if (config.zeroY) { yMin = Math.min(yMin, 0); yMax = Math.max(yMax, 0); }
+        if (xMin === xMax) { xMin -= 1; xMax += 1; }
+        if (yMin === yMax) { yMin -= 1; yMax += 1; }
+        const xPad = config.xDomain ? 0 : (xMax - xMin) * 0.06; const yPad = (yMax - yMin) * 0.06;
+        xMin -= xPad; xMax += xPad; yMin -= yPad; yMax += yPad;
+        if (config.zeroLine) yMin = Math.max(0, yMin);
+        if (yMax <= yMin) yMax = yMin + 1;
+        const full = { x: { min: xMin, max: xMax }, y: { min: yMin, max: yMax } };
+        const view = chartInteractions.getView(config, full);
+        xMin = view.x.min; xMax = view.x.max; yMin = view.y.min; yMax = view.y.max;
+        ctx.font = '11px Segoe UI, Microsoft YaHei, sans-serif';
+        const yLabelWidth = Math.max(...[yMin, yMax].map(value => ctx.measureText(formatNumber(value, axisPrecision(yMax - yMin))).width));
+        plot.left = Math.max(60, Math.min(Math.ceil(yLabelWidth) + 13, Math.floor(width * .4)));
+        plot.width = width - plot.left - margin.right;
+        const mapX = (value) => plot.left + ((value - xMin) / (xMax - xMin)) * plot.width;
+        const mapY = (value) => config.invertY ? plot.top + ((value - yMin) / (yMax - yMin)) * plot.height : plot.top + plot.height - ((value - yMin) / (yMax - yMin)) * plot.height;
+        const xTicks = config.xType === 'time' ? (width < 450 ? 2 : 4) : plot.width < 360 ? 2 : 4; const yTicks = 4;
+        ctx.strokeStyle = "#e4ebf1"; ctx.lineWidth = 1; ctx.fillStyle = "#52677b"; ctx.font = "11px Segoe UI, Microsoft YaHei, sans-serif";
+        ctx.textBaseline = "middle";
+        for (let i = 0; i <= yTicks; i += 1) {
+          const fraction = i / yTicks; const value = yMin + (yMax - yMin) * (config.invertY ? fraction : 1 - fraction); const y = plot.top + plot.height * fraction;
+          ctx.beginPath(); ctx.moveTo(plot.left, y); ctx.lineTo(plot.left + plot.width, y); ctx.stroke();
+          ctx.textAlign = "right"; ctx.fillText(config.yType === "time" ? formatDate(value) : formatNumber(value, axisPrecision(yMax - yMin)), plot.left - 8, y);
+        }
+        for (let i = 0; i <= xTicks; i += 1) {
+          const fraction = i / xTicks; const value = xMin + (xMax - xMin) * fraction; const x = plot.left + plot.width * fraction;
+          ctx.beginPath(); ctx.moveTo(x, plot.top); ctx.lineTo(x, plot.top + plot.height); ctx.stroke();
+          const tick = config.xType === 'time' ? (xMax - xMin < 10000 ? formatDate(value, true).slice(11) : xMax - xMin < 3600000 ? formatDate(value).slice(11, 19) : formatDate(value).slice(5, 16)) : formatNumber(value, axisPrecision(xMax - xMin));
+          ctx.textAlign = i === 0 ? 'left' : i === xTicks ? 'right' : 'center'; ctx.fillText(tick, x, plot.top + plot.height + 16);
+        }
+        ctx.strokeStyle = "#aebbb9"; ctx.lineWidth = 1.15; ctx.beginPath(); ctx.moveTo(plot.left, plot.top); ctx.lineTo(plot.left, plot.top + plot.height); ctx.lineTo(plot.left + plot.width, plot.top + plot.height); ctx.stroke();
+        ctx.fillStyle = "#52677b"; ctx.font = "12px Segoe UI, Microsoft YaHei, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+        ctx.fillText(config.xLabel, plot.left + plot.width / 2, height - 6);
+        ctx.save(); ctx.translate(13, plot.top + plot.height / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(config.yLabel, 0, 0); ctx.restore();
+        ctx.save(); ctx.beginPath(); ctx.rect(plot.left, plot.top, plot.width, plot.height); ctx.clip();
+        if (config.zeroLine) {
+          ctx.save(); ctx.strokeStyle = '#9da9a7'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(mapX(0), plot.top); ctx.lineTo(mapX(0), plot.top + plot.height); ctx.stroke(); ctx.restore();
+        }
+        if (config.zeroY) {
+          ctx.save(); ctx.strokeStyle = '#9da9a7'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(plot.left, mapY(0)); ctx.lineTo(plot.left + plot.width, mapY(0)); ctx.stroke(); ctx.restore();
+        }
+        const seriesList = config.series || [{ points, color: config.color, dash: [] }];
+        seriesList.forEach(series => {
+          ctx.save(); ctx.strokeStyle = series.color; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.setLineDash(series.dash); ctx.beginPath();
+          let started = false;
+          series.points.forEach((point, index) => {
+            const x = mapX(point.x), y = mapY(point.y);
+            const previous = series.points[index - 1];
+            const gap = previous && ((config.breakGaps && (point.index !== previous.index + 1 || point.source !== previous.source || point.gapBefore)) || (config.xType === 'time' && (point.x <= previous.x || (config.maxGapMs && point.x - previous.x > config.maxGapMs))));
+            if (!started || series.connect === false || gap) { ctx.moveTo(x, y); started = true; }
+            else { if (series.step) ctx.lineTo(x, mapY(previous.y)); ctx.lineTo(x, y); }
+          });
+          ctx.stroke(); ctx.setLineDash([]);
+          if (els.showPoints.checked || config.forcePoints || series.points.length === 1) {
+            ctx.fillStyle = series.color;
+            series.points.forEach(point => { ctx.beginPath(); ctx.arc(mapX(point.x), mapY(point.y), 2.5, 0, Math.PI * 2); ctx.fill(); });
+          }
+          ctx.restore();
+        });
+        overlays.forEach(point => {
+          const x = mapX(point.x), y = mapY(point.y);
+          ctx.fillStyle = '#8055aa'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x + 5, y); ctx.lineTo(x, y + 5); ctx.lineTo(x - 5, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+        });
+        ctx.restore();
+        const nearestPoint = (event) => {
+          const canvasRect = canvas.getBoundingClientRect();
+          const mx = event.clientX - canvasRect.left; const my = event.clientY - canvasRect.top;
+          if (mx < plot.left || mx > plot.left + plot.width || my < plot.top || my > plot.top + plot.height) return null;
+          let nearest = null; let distance = Infinity;
+          allPoints.forEach((point) => {
+            const px = mapX(point.x); const py = mapY(point.y);
+            if (px < plot.left || px > plot.left + plot.width || py < plot.top || py > plot.top + plot.height) return;
+            const d = Math.hypot(px - mx, py - my);
+            if (d < distance) { nearest = { point, px, py, distance: d }; distance = d; }
+          });
+          return nearest && nearest.distance < 42 ? nearest : null;
+        };
+        const showTooltip = (event) => {
+          const found = nearestPoint(event);
+          if (!found) { tooltip.classList.remove("show"); return; }
+          const point = found.point;
+          const xText = config.xType === "time" ? (point.time ? formatDate(point.time) : point.timeRaw || `样本 ${point.index + 1}`) : `${formatNumber(point.x, Math.max(3, axisPrecision(xMax - xMin)))} ${config.xUnit}`;
+          const lines = [point.source || 'CTD', `${xText} · ${formatNumber(point.y, Math.max(4, axisPrecision(yMax - yMin)))} ${config.yUnit}`];
+          if (config.xType !== 'time' && Number.isFinite(point.time)) lines.push(`${formatDate(point.time)}（北京）`);
+          if (point.label) lines.push(point.label);
+          if (point.phaseLabel) lines.push(`任务阶段：${point.phaseLabel}`);
+          if (config.motor && ('position' in point || 'target' in point)) lines.push(`当前位置 ${formatNumber(point.position, 3)} · 目标 ${formatNumber(point.target, 3)}\n偏差（当前−目标）${formatNumber(point.error, 3)}`);
+          if (config.zeroLine) lines.push(`相邻采样间隔 ${formatNumber(point.deltaTime, 3)} s`);
+          tooltip.textContent = lines.join('\n');
+          const maxLeft = canvas.clientWidth - tooltip.offsetWidth - 8;
+          tooltip.style.left = `${Math.min(Math.max(4, found.px), Math.max(4, maxLeft))}px`;
+          tooltip.style.top = `${Math.min(Math.max(4, found.py), Math.max(4, canvas.clientHeight - tooltip.offsetHeight - 8))}px`;
+          tooltip.classList.add("show");
+        };
+        chartInteractions.attach({ canvas, config, full, view, plot, showTooltip, hideTooltip: () => tooltip.classList.remove('show'), redraw: () => drawChart(canvas, tooltip, config) });
+      }
+
+      function renderCharts() {
+        chartInteractions.beginRender();
+        if (state.mode === 'replay') { replayViewer.mount(); return; }
+        replayViewer.unmount();
+        els.chartsGrid.innerHTML = "";
+        const times = [...state.rows, ...(state.mot?.rows || []), ...state.levelRows].map(row => row.time).filter(Number.isFinite);
+        if (times.length) {
+          const min = Math.min(...times), max = Math.max(...times), pad = Math.max(1000, (max - min) * .03);
+          chartTimeDomain = { min: min - pad, max: max + pad };
+        } else chartTimeDomain = null;
+        if (state.mode === 'mot') { renderMotCharts(); return; }
+        const pressure = valueList("pressure");
+        const temperature = valueList("temperature");
+        const salinity = valueList("salinity");
+        const invertY = els.invertDepth.checked;
+        const pressureUnit = state.depthUnit === 'm' ? 'm' : state.depthUnit === 'dbar' ? 'dbar' : '原始单位';
+        const pressureLabel = state.depthUnit === 'm' ? '深度 (m)' : `压力 (${pressureUnit})`;
+        if (!state.rows.length) {
+          els.chartsGrid.innerHTML = "<div class=\"empty-state\"><strong>还没有可绘制的数据</strong><span>导入 CSV 或文件夹，也可在数据设置中载入示例。</span></div>";
+          return;
+        }
+        if (state.mode === 'velocity') {
+          renderVelocityChart(invertY);
+        } else if (state.mode === "profile") {
+          createChartCard({ title: "温度剖面", subtitle: "温度随压力 / 深度变化", points: validPoints("temperature", "pressure", true), xLabel: "温度 (°C)", yLabel: pressureLabel, xUnit: "°C", yUnit: pressureUnit, xType: "number", yType: "number", invertY, color: palette.temperature, legend: `CTD ${temperature.length} 个温度点`, stat: formatRange(temperature, 2) });
+          createChartCard({ title: "盐度剖面", subtitle: "盐度随压力 / 深度变化", points: validPoints("salinity", "pressure", true), xLabel: "盐度 (psu)", yLabel: pressureLabel, xUnit: "psu", yUnit: pressureUnit, xType: "number", yType: "number", invertY, color: palette.salinity, legend: `CTD ${salinity.length} 个盐度点`, stat: formatRange(salinity, 3) });
+          createChartCard({ title: "温盐关系", subtitle: "T-S diagram · 用于观察水团变化", points: validPoints("temperature", "salinity"), xLabel: "温度 (°C)", yLabel: "盐度 (psu)", xUnit: "°C", yUnit: "psu", xType: "number", yType: "number", invertY: false, color: palette.relation, legend: `CTD ${validPoints('temperature', 'salinity').length} 个配对点`, stat: `${formatNumber(temperature.length ? temperature[0] : NaN, 2)} °C 起` });
+          renderVelocityChart(invertY);
+        } else {
+          const timeRows = state.rows.filter((row) => Number.isFinite(row.time));
+          const timePoints = (key) => timeRows.map((row) => ({ ...row, x: row.time, y: row[key], source: 'CTD' })).filter((point) => Number.isFinite(point.y));
+          const levelPoints = (key) => els.showLevel.checked ? state.levelRows.map(row => ({ ...row, source: `level · ${row.source}`, x: row.time, y: key === 'pressure' && state.depthUnit === 'm' ? row.depth : row[key] })).filter(point => Number.isFinite(point.x) && Number.isFinite(point.y) && (key !== 'pressure' || state.depthUnit !== 'unknown')) : [];
+          createChartCard({ title: "温度时间序列", subtitle: "按采样时间查看温度变化", xDomain: chartTimeDomain, points: timePoints("temperature"), overlays: levelPoints('temperature'), breakGaps: true, xLabel: "采样时间（北京）", yLabel: "温度 (°C)", xUnit: "", yUnit: "°C", xType: "time", yType: "number", invertY: false, color: palette.temperature, legend: `CTD ${temperature.length} 个温度点`, stat: formatRange(temperature, 2), wide: true });
+          createChartCard({ title: "盐度时间序列", subtitle: "按采样时间查看盐度变化", xDomain: chartTimeDomain, points: timePoints("salinity"), overlays: levelPoints('salinity'), breakGaps: true, xLabel: "采样时间（北京）", yLabel: "盐度 (psu)", xUnit: "", yUnit: "psu", xType: "time", yType: "number", invertY: false, color: palette.salinity, legend: `CTD ${salinity.length} 个盐度点`, stat: formatRange(salinity, 3), wide: true });
+          createChartCard({ title: "压力 / 深度时间序列", subtitle: "按采样时间查看下潜 / 上浮过程", xDomain: chartTimeDomain, points: timePoints("pressure"), overlays: levelPoints('pressure'), breakGaps: true, xLabel: "采样时间（北京）", yLabel: pressureLabel, xUnit: "", yUnit: pressureUnit, xType: "time", yType: "number", invertY: false, color: palette.pressure, legend: `CTD ${pressure.length} 个测量点`, stat: formatRange(pressure, 2), wide: true });
+        }
+      }
+
+      const phaseStyles = [
+          { id: 'descent1', label: '一次下潜', color: '#2563a6', dash: [] },
+          { id: 'descent2', label: '二次下潜', color: '#8055aa', dash: [9, 3, 2, 3] },
+          { id: 'ascent', label: '上浮', color: '#c26919', dash: [8, 4] },
+          { id: 'drift', label: '漂流', color: '#77858b', dash: [2, 4] },
+          { id: 'transition', label: '阶段交界', color: '#9ba3a8', dash: [], connect: false },
+          { id: 'unknown', label: '阶段不明', color: '#697780', dash: [3, 5] }
+      ];
+      function renderVelocityChart(invertY) {
+        const result = state.velocity;
+        const styles = phaseStyles;
+        const points = state.phases.points.map(row => ({ ...row, x: row.velocity, y: row.depth, source: 'CTD · 垂向速度', phaseLabel: styles.find(style => style.id === row.phase).label }));
+        const series = styles.map(style => ({ ...style, points: points.filter(point => point.phase === style.id) })).filter(item => item.points.length);
+        const depthNote = state.depthUnit === 'dbar' ? `压力换算为米，纬度 ${formatNumber(result.latitude, 4)}°${result.assumedLatitude ? '（缺少有效定位，使用假设值）' : '（keydata）'}` : state.depthUnit === 'm' ? '使用 CSV 的米深度' : '深度单位未知，无法计算速度';
+        const card = createChartCard({ title: '垂向速度—深度', subtitle: '颜色与线型表示任务阶段 · 竖直虚线为零速度', points, series, xLabel: '垂向速度 (m/s)', yLabel: '深度 (m)', xUnit: 'm/s', yUnit: 'm', xType: 'number', yType: 'number', invertY, zeroLine: true, breakGaps: true, forcePoints: true, color: '#697780', legend: `${points.length} 个有效速度点 · `, stat: `${formatRange(points.map(p => p.velocity), 3)} m/s`, emptyText: '需要有效时间与已知单位的深度', method: `v = Δz / Δt；正值表示向深处运动，负值表示向浅处运动，任务阶段不由速度正负决定。${state.phases.note}。跨阶段采样区间显示为“阶段交界”散点，各阶段分别连线。按原始采样顺序使用相邻点实际时间差，结果放在后一采样点深度处。${depthNote}。跳过 ${result.skippedCount} 对缺测、无效深度或非递增时间。未平滑；测量噪声及较长采样间隔会影响速度估计。` });
+        if (!points.length) return;
+        const details = document.createElement('details'); details.className = 'chart-method';
+        const summary = document.createElement('summary'); summary.textContent = '查看全部速度计算结果'; details.append(summary);
+        const wrap = document.createElement('div'); wrap.className = 'table-scroll'; wrap.tabIndex = 0;
+        const table = document.createElement('table'), head = document.createElement('thead'), tr = document.createElement('tr'), body = document.createElement('tbody');
+        ['行号', '时间（北京）', '任务阶段', '深度 (m)', '时间差 (s)', '垂向速度 (m/s)'].forEach(text => { const th = document.createElement('th'); th.textContent = text; tr.append(th); });
+        head.append(tr);
+        points.forEach(point => {
+          const row = document.createElement('tr');
+          [point.index + 1, formatDate(point.time), point.phaseLabel, formatNumber(point.depth, 4), formatNumber(point.deltaTime, 3), formatNumber(point.velocity, 5)].forEach(text => { const td = document.createElement('td'); td.textContent = String(text); row.append(td); });
+          body.append(row);
+        });
+        table.append(head, body); wrap.append(table); details.append(wrap); card.append(details);
+      }
+
+      function renderMotPanel(records) {
+        const selected = records[state.motIndex] || records[0];
+        const container = document.getElementById('motContent'), details = document.getElementById('motDetails');
+        container.replaceChildren(); details.replaceChildren();
+        document.getElementById('motSource').textContent = selected?.relativePath || selected?.name || '';
+        document.getElementById('motStatus').textContent = selected ? `${state.mot.stats.rowCount} 条记录` : '缺少数据';
+        els.motSelect.replaceChildren(); els.motSelect.hidden = records.length < 2;
+        records.forEach((record, i) => { const option = document.createElement('option'); option.value = String(i); option.textContent = record.relativePath || record.name; els.motSelect.append(option); });
+        els.motSelect.value = String(state.motIndex);
+        const note = document.createElement('p'); note.className = 'source-note';
+        if (!selected || !state.mot.rows.length) {
+          note.textContent = '未找到同日期、同剖面的 mot 电机记录。请导入含 mot CSV 的完整目录；不按 CTD 运动方向推断电机动作。';
+          container.append(note); return;
+        }
+        const stats = state.mot.stats, last = stats.lastUsableRow;
+        const entries = [
+          ['记录数 / 有效时间', `${stats.rowCount} / ${stats.timedCount}`],
+          ['末条有值记录：当前 / 目标', `${formatNumber(last?.position, 3)} / ${formatNumber(last?.target, 3)}`],
+          ['最大绝对位置偏差', formatNumber(stats.maxAbsError, 3)],
+          ['记录中的目标变更', `${stats.observedTargetChanges} 次`]
+        ];
+        const grid = document.createElement('dl'); grid.className = 'facts-grid';
+        entries.forEach(([title, value]) => { const box = document.createElement('div'); box.className = 'fact'; const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = title; dd.textContent = value; box.append(dt, dd); grid.append(box); });
+        const gap = state.mot.sourceStats[0];
+        note.textContent = `位置单位未提供，保留原始值；偏差 = 当前位置 − 目标位置，不直接判定故障。末条有值记录：${formatDate(last?.time) || '时间未记录'}（北京）。最长相邻记录间隔 ${formatNumber(stats.maxGapSeconds, 1)} s；超过 ${formatNumber(gap?.gapThresholdSeconds, 1)} s 的 ${stats.gapCount} 处间隔断线（规则：60 s 与 5 倍记录间隔中位数取较大值，仅用于绘图）。源码参考（GD470 v0408-2）：当前位置或目标位置变化时才写入 MOT；长间隔可能只是期间无数值变化，不作为丢样或故障证据。历史数据请核对固件版本。`;
+        container.append(grid, note);
+        const table = document.createElement('table'), head = document.createElement('thead'), tr = document.createElement('tr'), body = document.createElement('tbody');
+        ['行号', '时间（北京）', '当前位置', '目标位置', '偏差（当前−目标）', '与上一条的长间隔 (s)'].forEach(label => { const th = document.createElement('th'); th.textContent = label; tr.append(th); });
+        head.append(tr);
+        state.mot.rows.forEach(point => {
+          const row = document.createElement('tr');
+          [point.index + 1, formatDate(point.time) || point.timeRaw || '未记录', formatNumber(point.position, 3), formatNumber(point.target, 3), formatNumber(point.error, 3), point.gapBefore ? formatNumber(point.gapSeconds, 1) : '—'].forEach(value => { const td = document.createElement('td'); td.textContent = String(value); row.append(td); });
+          body.append(row);
+        });
+        const wrap = document.createElement('div'); wrap.className = 'table-scroll'; wrap.tabIndex = 0;
+        table.append(head, body); wrap.append(table); details.append(wrap);
+      }
+
+      function renderMotCharts() {
+        if (!state.mot?.rows.length) {
+          const empty = document.createElement('div'); empty.className = 'empty-state';
+          empty.textContent = '当前剖面没有 mot 数据，可切换剖面或导入完整文件夹。'; els.chartsGrid.append(empty); return;
+        }
+        const motRows = state.mot.rows;
+        const timeValues = [...motRows, ...state.rows].map(row => row.time).filter(Number.isFinite);
+        if (!timeValues.length) {
+          const empty = document.createElement('div'); empty.className = 'empty-state'; empty.textContent = '没有有效时间，无法按时间绘图；原始记录仍可在下方查看。'; els.chartsGrid.append(empty); return;
+        }
+        const min = Math.min(...timeValues), max = Math.max(...timeValues), pad = Math.max(1000, (max - min) * 0.03);
+        const xDomain = chartTimeDomain || { min: min - pad, max: max + pad };
+        const common = { xDomain, xType: 'time', yType: 'number', xLabel: '采样时间（北京）', xUnit: '', wide: true, motor: true, forcePoints: true, breakGaps: true, invertY: false, legend: '' };
+        const motPoints = (key, label) => motRows.filter(row => Number.isFinite(row.time) && Number.isFinite(row[key])).map(row => ({ ...row, x: row.time, y: row[key], label }));
+        const current = motPoints('position', '当前位置'), target = motPoints('target', '目标位置'), error = motPoints('error', '位置偏差');
+        createChartCard({ ...common, title: '浮力电机位置', subtitle: '当前位置与目标位置 · 原始位置值', points: [...current, ...target], yLabel: '位置（原始值）', yUnit: '原始值', color: '#267ca3', legend: `${motRows.length} 条 mot 记录 · `, series: [
+          { id: 'mot-position', label: '当前位置', points: current, color: '#267ca3', dash: [] },
+          { id: 'mot-target', label: '目标位置', points: target, color: '#c26919', dash: [7, 4], step: true }
+        ], method: '四张图共用同一时间范围，可上下对照；各自保留原始记录时间，不插值合并。目标阶梯线仅连接已记录数值，不表示命令精确发生时刻；长间隔处断线。源码参考（GD470 v0408-2）：MOT 按位置或目标变化记录，长间隔本身不代表丢样；历史固件需核验。' });
+        createChartCard({ ...common, title: '电机位置偏差', subtitle: '当前位置 − 目标位置 · 零线表示该采样点位置相等', points: error, yLabel: '偏差（原始值）', yUnit: '原始值', color: '#8055aa', zeroY: true, legend: `${error.length} 个有效偏差点`, stat: `最大绝对值 ${formatNumber(state.mot.stats.maxAbsError, 3)}` });
+        const ctdRows = state.singleMot ? [] : state.rows;
+        const ctdDepth = ctdRows.filter(row => Number.isFinite(row.time) && Number.isFinite(row.depth)).map(row => ({ ...row, source: 'CTD', x: row.time, y: row.depth }));
+        const ctdStep = ctdRows.slice(1).map((row, i) => Number.isFinite(row.time) && Number.isFinite(ctdRows[i].time) ? row.time - ctdRows[i].time : null).filter(delta => Number.isFinite(delta) && delta > 0).sort((a, b) => a - b);
+        const maxGapMs = Math.max(60000, ctdStep.length ? 5 * ctdStep[Math.floor(ctdStep.length / 2)] : 60000);
+        const depthNote = state.depthUnit === 'dbar' ? `压力换算深度；纬度 ${formatNumber(state.velocity.latitude, 4)}°${state.velocity.assumedLatitude ? '（假设值）' : '（keydata）'}` : '按已识别的米深度绘制';
+        createChartCard({ ...common, title: 'CTD 深度对照', subtitle: state.singleMot ? '单独导入 mot，未关联 CTD' : depthNote, points: ctdDepth, maxGapMs, yLabel: '深度 (m)', yUnit: 'm', color: '#1b8978', invertY: els.invertDepth.checked, legend: `CTD ${ctdDepth.length} 点`, emptyText: '没有配套 CTD 米深度数据', method: `沿用同一时间轴；超过 ${formatNumber(maxGapMs / 1000, 1)} s 的 CTD 记录间隔断线。` });
+        const velocities = state.singleMot ? [] : state.phases.points.map(row => ({ ...row, x: row.time, y: row.velocity, source: 'CTD', phaseLabel: phaseStyles.find(style => style.id === row.phase).label }));
+        const series = phaseStyles.map(style => ({ ...style, points: velocities.filter(row => row.phase === style.id) })).filter(item => item.points.length);
+        createChartCard({ ...common, title: 'CTD 垂向速度对照', subtitle: '正值向深处、负值向浅处 · 颜色和线型表示任务阶段', points: velocities, series, maxGapMs, zeroY: true, yLabel: '垂向速度 (m/s)', yUnit: 'm/s', color: '#697780', legend: `${velocities.length} 个有效速度点 · `, emptyText: '没有配套 CTD 速度数据', method: `${state.phases.note} 速度为相邻采样间隔内的平均值，不等于电机转速；与 mot 对照仅表示时间上的对应。` });
+      }
+
+      function updateSummary() {
+        const pressure = valueList("pressure"); const temperature = valueList("temperature"); const salinity = valueList("salinity");
+        els.statRows.textContent = state.rows.length ? formatNumber(state.rows.length, 0) : "—";
+        els.statRowsHint.textContent = `${state.encoding} · 有效记录`;
+        els.statPressure.textContent = formatRange(pressure, 1);
+        document.getElementById('pressureUnit').textContent = state.depthUnit === 'unknown' ? '单位未识别' : state.depthUnit;
+        els.statTemperature.textContent = formatRange(temperature, 2);
+        els.statSalinity.textContent = formatRange(salinity, 3);
+        els.pageFileLabel.textContent = `${state.fileName} · ${state.rows.length} 个采样点`;
+        const activeRecord = state.folder?.records.find((record) => record.id === state.selectedRecordId);
+        els.fileMeta.textContent = activeRecord
+          ? `${activeRecord.relativePath} · ${state.encoding} · ${state.rawRows.length} 行`
+          : `${state.fileName} · ${state.encoding} · ${state.rawRows.length} 行`;
+        const failures = state.folder?.failures || [];
+        els.fileMeta.title = failures.join('\n');
+        if (failures.length) {
+          const detail = document.createElement('details'), summary = document.createElement('summary');
+          summary.textContent = `${failures.length} 个文件未读取 · 查看原因`; detail.append(summary);
+          failures.forEach(failure => { const item = document.createElement('div'); item.textContent = failure; detail.append(item); });
+          els.fileMeta.append(detail);
+        }
+      }
+
+      function renderTable() {
+        els.tableHead.innerHTML = ""; els.tableBody.innerHTML = "";
+        if (!state.headers.length) { els.tableHint.textContent = "暂无数据"; return; }
+        const headRow = document.createElement("tr");
+        state.headers.forEach((header) => { const th = document.createElement("th"); th.textContent = header; headRow.appendChild(th); });
+        els.tableHead.appendChild(headRow);
+        const visibleRows = state.rawRows.slice(0, 12);
+        visibleRows.forEach((values) => {
+          const tr = document.createElement("tr");
+          state.headers.forEach((_, index) => { const td = document.createElement("td"); td.textContent = values[index] ?? ""; tr.appendChild(td); });
+          els.tableBody.appendChild(tr);
+        });
+        els.tableHint.textContent = `显示前 ${Math.min(12, state.rawRows.length)} 行，共 ${state.rawRows.length} 行`;
+      }
+
+      function analyzeTask() {
+        const active = state.folder?.records.find(record => record.id === state.selectedRecordId);
+        const keydata = active?.keydata || [];
+        const level = active?.level || [];
+        const keyRecord = keydata[state.keydataIndex] || keydata[0];
+        const fields = keyRecord ? CtdData.keydataFields(keyRecord) : {};
+        const motRecords = state.singleMot ? [state.singleMot] : active?.mot || [];
+        const motRecord = motRecords[state.motIndex] || motRecords[0];
+        state.mot = CtdMot.analyze(motRecord ? [motRecord] : []);
+        renderMotPanel(motRecords);
+        els.keydataSelect.replaceChildren();
+        els.keydataSelect.hidden = keydata.length < 2;
+        keydata.forEach((record, index) => {
+          const option = document.createElement('option'); option.value = String(index); option.textContent = record.relativePath; els.keydataSelect.append(option);
+        });
+        els.keydataSelect.value = String(state.keydataIndex);
+        CtdDiagnostics.renderKey(keyRecord, fields);
+        const latitude = CtdDiagnostics.latitude(fields);
+        const depthHeader = state.headers[state.columns.pressure] || '';
+        const depthUnit = /dbar/i.test(depthHeader) ? 'dbar' : /[（(]\s*m\s*[)）]|米/.test(depthHeader) ? 'm' : 'unknown';
+        state.depthUnit = depthUnit;
+        const options = { latitude, depthUnit };
+        state.velocity = CtdVelocity.compute(state.rows, options);
+        state.rows = state.velocity.rows;
+        state.phases = CtdPhases.annotate(state.velocity.rows, fields);
+        const results = level.map(record => CtdVelocity.compute(CtdData.levelRows([record]).sort((a, b) => a.index - b.index), { ...options, depthUnit: 'dbar' }));
+        state.levelRows = results.flatMap(result => result.rows).sort((a, b) => (a.time ?? Infinity) - (b.time ?? Infinity));
+        CtdDiagnostics.renderLevel(level, state.levelRows);
+        const replayColumns = JSON.stringify(state.columns);
+        if (!replayDataSource || replayDataSource.rows !== state.rawRows || replayDataSource.keyRecord !== keyRecord || replayDataSource.columns !== replayColumns || replayDataSource.singleMot !== state.singleMot) {
+          replayDataSource = { rows: state.rawRows, keyRecord, columns: replayColumns, singleMot: state.singleMot };
+          replayViewer.setData(state.singleMot ? [] : state.phases.rows, state.phases.timeline);
+        }
+      }
+
+      function updateAll() {
+        prepareRows();
+        analyzeTask();
+        const hasData = state.rawRows.length > 0;
+        els.statusBadge.textContent = hasData ? "数据已就绪" : "等待数据";
+        els.statusBadge.classList.toggle("ready", hasData);
+        state.exportTitle = state.mode === 'replay' ? '浮标仿真 · 实测回放' : state.mode === 'mot' ? '浮力电机分析' : state.mode === 'velocity' ? 'CTD 垂向速度—深度' : state.mode === "profile" ? "CTD 剖面" : "CTD 时间序列";
+        els.pageTitle.textContent = state.exportTitle;
+        els.pageSubtitle.textContent = state.mode === 'replay' ? '根据 CTD 深度、垂向速度与任务时间回放浮标升沉状态' : state.mode === 'mot' ? '按时间对照电机位置、目标和 CTD 深度 / 垂向速度' : state.mode === 'velocity' ? '根据 CTD 深度变化和实际采样时间差估算垂向运动速度' : state.mode === "profile" ? "温度、盐度与压力数据的快速浏览" : "沿采样时间检查传感器变化和下潜过程";
+        els.motPanel.hidden = state.mode !== 'mot';
+        els.statRows.closest('.summary-grid').hidden = state.mode === 'replay';
+        document.getElementById('motDetailsPanel').hidden = state.mode !== 'mot' || !state.mot.rows.length;
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.mode === state.mode));
+        updateSummary(); renderCharts(); renderTable();
+        const logLink = document.getElementById('logsLink');
+        const logTask = state.folder?.records.find(record => record.id === state.selectedRecordId);
+        if (logTask) {
+          const context = taskContext(logTask);
+          const query = new URLSearchParams({ day: context.day, scope: context.scopeKey });
+          if (state.folder.origin !== 'server') query.set('source', 'import');
+          logLink.href = 'ctd-logs.html?' + query.toString();
+        } else logLink.href = /^内置示例/.test(state.fileName) ? 'ctd-logs.html' : 'ctd-logs.html?source=import';
+      }
+
+      function showToast(message, error = false) {
+        els.toast.textContent = message; els.toast.classList.toggle("error", error); els.toast.classList.add("show");
+        window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 2800);
+      }
+
+      async function readFiles(fileList) {
+        const files = asFileEntries(fileList).filter(entry => /\.(csv|txt)$/i.test(entry.name));
+        if (!files.length) { state.importVersion += 1; clearCtdForBatch('请选择 CSV 或 TXT 文件'); return; }
+        const entry = files[0], file = entry.file;
+        const version = ++state.importVersion;
+        try {
+          const decoded = decodeBytes(await file.arrayBuffer());
+          const dataset = parseDelimited(decoded.text);
+          if (!dataset.headers.length || !dataset.rows.length) throw new Error("文件没有可用的表头或数据行");
+          if (version !== state.importVersion) return;
+          state.folder = null;
+          state.selectedRecordId = "";
+          state.motIndex = 0;
+          const isMot = dataset.headers.includes('浮力电机当前位置') || dataset.headers.includes('浮力电机目标位置');
+          state.singleMot = isMot ? { name: entry.name, relativePath: entry.relativePath, dataset, encoding: decoded.encoding } : null;
+          if (isMot) state.mode = 'mot';
+          renderFolderTasks();
+          setDataset(dataset, entry.name, decoded.encoding);
+          if (files.length > 1) showToast(`已载入第 1 个文件：${entry.name}（共选择 ${files.length} 个）`);
+        } catch (error) {
+          if (version === state.importVersion) showToast(`读取失败：${error.message}`, true);
+        }
+      }
+
+      async function readFolder(fileList) {
+        const allFiles = asFileEntries(fileList);
+        const version = ++state.importVersion;
+        const candidates = allFiles.filter(entry => CtdData.fileMeta(entry.name, entry.relativePath));
+        if (!candidates.length) {
+          clearCtdForBatch('这个批次里没有找到 CTD CSV，已清空上一批 CTD 数据。');
+          return;
+        }
+        const rootPath = String(candidates[0].relativePath || candidates[0].name).split(/[\\/]+/).filter(Boolean);
+        const folderName = rootPath[0] || "已选文件夹";
+        els.statusBadge.textContent = `正在扫描 ${candidates.length} 个文件`;
+        els.statusBadge.classList.remove("ready");
+        try {
+          const failures = [];
+          const parsed = await Promise.all(candidates.map(async (entry) => {
+            try {
+              const meta = CtdData.fileMeta(entry.name, entry.relativePath);
+              const decoded = decodeBytes(await entry.file.arrayBuffer());
+              const dataset = parseDelimited(decoded.text);
+              if (!dataset.headers.length || !dataset.rows.length) throw new Error('空文件或缺少数据行');
+              return { ...meta, dataset, encoding: decoded.encoding, rowCount: dataset.rows.length };
+            } catch (error) {
+              failures.push(`${entry.relativePath}：${error.message}`);
+              return null;
+            }
+          }));
+          if (version !== state.importVersion) return;
+          const readable = parsed.filter(Boolean);
+          if (!readable.some(record => record.kind === 'ctd')) {
+            clearCtdForBatch('当前批次没有可绘制的 CTD，已清空上一批 CTD 数据。');
+            return;
+          }
+          installLibrary(readable, folderName, failures);
+        } catch (error) {
+          if (version === state.importVersion) {
+            els.statusBadge.textContent = "等待数据";
+            showToast(`文件夹读取失败：${error.message}`, true);
+          }
+        }
+      }
+
+      function installLibrary(records, folderName, failures = [], origin = 'import') {
+        const library = CtdData.buildLibrary(records);
+        if (!library.records.length) throw new Error('未找到可绘制的 CTD；请导入含 CTD、keydata、level、mot 的完整文件夹；单个 mot 可用“导入 CSV”');
+        library.records.forEach(record => { record.rowCount = record.dataset.rows.length; });
+        state.folder = { ...library, folderName, origin };
+        state.folder.failures = failures;
+        const restored = pendingWorkspaceSelection?.recordId
+          ? library.records.find(record => record.id === pendingWorkspaceSelection.recordId)
+          : null;
+        const initialRecord = restored || library.records[0];
+        state.selectedRecordId = initialRecord.id;
+        renderFolderTasks();
+        selectFolderRecord(initialRecord, false, !restored);
+        if (restored) pendingWorkspaceSelection = null;
+        showToast(`已载入 ${library.taskCount} 个剖面，keydata ${library.keydataCount} 份，level ${library.levelCount} 份，mot ${library.motCount} 份${failures.length ? `；跳过 ${failures.length} 个文件（数据源处可查看）` : ''}`);
+      }
+
+      async function loadServerCatalog(publishServer = true) {
+        const isLocalService = window.location.protocol === 'http:'
+          && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+        if (!isLocalService) return false;
+        const version = ++state.importVersion;
+        try {
+          const response = await fetch("/api/catalog", { cache: "no-store" });
+          if (!response.ok) throw new Error(`目录服务返回 ${response.status}`);
+          const payload = await response.json();
+          const failures = (payload.errors || []).map(item => `${item.relativePath}：${item.message}`);
+          const records = [];
+          for (const record of payload.records || []) {
+            try {
+              const dataset = parseDelimited(record.text || '');
+              if (!dataset.headers.length || !dataset.rows.length) throw new Error('空文件或缺少数据行');
+              records.push({ ...record, dataset, rowCount: dataset.rows.length });
+            } catch (error) { failures.push(`${record.relativePath}：${error.message}`); }
+          }
+          if (!records.length) throw new Error('未找到可读取的数据文件');
+          if (version !== state.importVersion) return false;
+          if (publishServer) workspace.replace([], { source: 'server', folderName: payload.folderName || '当前目录' });
+          installLibrary(records, payload.folderName || '当前目录', failures, 'server');
+          return true;
+        } catch (error) {
+          if (version === state.importVersion) showToast(`自动扫描未完成：${error.message}；可使用导入文件夹`, true);
+          return false;
+        }
+      }
+
+      function exportPng() {
+        if (state.mode === 'replay') {
+          if (replayViewer.exportPng(state.fileName)) showToast('当前浮标状态已导出为 PNG');
+          else showToast('当前没有可导出的浮标回放数据', true);
+          return;
+        }
+        const canvases = Array.from(els.chartsGrid.querySelectorAll("canvas"));
+        if (!canvases.length) { showToast("当前没有可导出的图表", true); return; }
+        const scale = 2; const width = 1100; const cardHeight = 460; const headerHeight = state.mode === 'mot' ? 182 : 136; const height = headerHeight + 14 + canvases.length * cardHeight;
+        const output = document.createElement("canvas"); output.width = width * scale; output.height = height * scale;
+        const ctx = output.getContext("2d"); ctx.scale(scale, scale); ctx.fillStyle = "#f5f7f6"; ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = "#172234"; ctx.font = "700 22px Segoe UI, Microsoft YaHei, sans-serif"; ctx.fillText(`${state.exportTitle} · ${state.fileName}`, 42, 40);
+        ctx.font = '13px Segoe UI, Microsoft YaHei, sans-serif'; ctx.fillStyle = '#637073';
+        const velocityCaption = '设备垂向速度 v = Δz/Δt；正值向深处、负值向浅处；颜色与线型表示 keydata 任务阶段';
+        const conversionCaption = state.depthUnit === 'dbar' ? `压力按 UNESCO 1983 换算为米；纬度 ${formatNumber(state.velocity.latitude, 4)}°${state.velocity.assumedLatitude ? '（缺少有效定位，使用假设值）' : '（keydata）'}；速度使用相邻点差分，未平滑。` : 'CTD 计算使用米深度；速度使用相邻点差分，未平滑。未知深度单位不计算速度。';
+        if (state.mode === 'mot') {
+          ctx.fillText('电机位置保留原始值（单位未提供）；偏差 = 当前位置 − 目标位置，不据此直接判定故障。', 42, 67);
+          ctx.fillText(`mot 来源：${document.getElementById('motSource').textContent}`, 42, 90, width - 84);
+          ctx.fillText(`同一时间轴对照，未插值合并；mot 间隔超过 ${formatNumber(state.mot.sourceStats[0]?.gapThresholdSeconds, 1)} s 断线，共 ${state.mot.stats.gapCount} 处；目标阶梯线仅示采样记录。`, 42, 113);
+          ctx.fillText(`${conversionCaption} 源码参考：MOT 按变化记录，长间隔不等同丢样。`, 42, 136, width - 84);
+          ctx.fillText(state.phases.note, 42, 159, width - 84);
+        } else {
+          ctx.fillText(state.mode === 'timeseries' ? '温度、盐度与压力 / 深度按原始采样时间绘制；◆ 表示 level 测量点' : velocityCaption, 42, 67);
+          ctx.fillText(conversionCaption, 42, 90);
+          if (state.mode !== 'timeseries') ctx.fillText(state.phases.note, 42, 113, width - 84);
+        }
+        canvases.forEach((canvas, index) => {
+          const y = headerHeight + index * cardHeight; const card = canvas.closest('.chart-card');
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(30, y, width - 60, cardHeight - 16);
+          ctx.fillStyle = '#172234'; ctx.font = 'bold 17px Segoe UI, Microsoft YaHei, sans-serif'; ctx.fillText(card.querySelector('h2').textContent + (canvas.dataset.zoomed === 'true' ? ' · 局部视图' : ''), 48, y + 26);
+          const availableWidth = width - 90, ratio = canvas.width / canvas.height;
+          const drawHeight = Math.min(300, availableWidth / ratio), drawWidth = drawHeight * ratio;
+          ctx.drawImage(canvas, (width - drawWidth) / 2, y + 40, drawWidth, drawHeight);
+          ctx.font = '12px Segoe UI, Microsoft YaHei, sans-serif'; ctx.fillStyle = '#637073';
+          const legend = card.querySelector('.chart-legend');
+          ctx.fillText(legend.dataset.baseText, 48, y + 358);
+          let keyX = 48, keyY = y + 383;
+          legend.querySelectorAll('.phase-legend').forEach(item => {
+            const label = item.textContent; const itemWidth = ctx.measureText(label).width + 55;
+            if (keyX + itemWidth > width - 48) { keyX = 48; keyY += 23; }
+            ctx.strokeStyle = item.style.color; ctx.fillStyle = item.style.color; ctx.lineWidth = 2;
+            if (item.dataset.phase === 'transition') { ctx.beginPath(); ctx.arc(keyX + 10, keyY - 4, 3, 0, Math.PI * 2); ctx.fill(); }
+            else { ctx.setLineDash(item.dataset.dash ? item.dataset.dash.split(',').map(Number) : []); ctx.beginPath(); ctx.moveTo(keyX, keyY - 4); ctx.lineTo(keyX + 26, keyY - 4); ctx.stroke(); }
+            ctx.setLineDash([]); ctx.fillText(label, keyX + 33, keyY); keyX += itemWidth;
+          });
+          ctx.fillStyle = '#637073';
+          if (canvas.dataset.viewRangeLabel) ctx.fillText(canvas.dataset.viewRangeLabel, 48, y + 410, width - 96);
+          ctx.fillText(card.querySelector('.chart-subtitle').textContent, 48, y + 432);
+        });
+        const link = document.createElement("a"); link.download = `${state.fileName.replace(/\.[^.]+$/, "") || "ctd"}-${state.mode}.png`; link.href = output.toDataURL("image/png"); link.click();
+        showToast("图表已导出为 PNG");
+      }
+
+      function loadDemo() {
+        state.importVersion += 1;
+        pendingWorkspaceSelection = null;
+        state.singleMot = null;
+        state.motIndex = 0;
+        const demo = buildDemoRows();
+        state.folder = null;
+        state.selectedRecordId = "";
+        renderFolderTasks();
+        setDataset(demo, "内置示例数据.csv", demo.encoding);
+      }
+
+      els.openButton.addEventListener("click", () => els.fileInput.click());
+      els.folderButton.addEventListener("click", () => els.folderInput.click());
+      els.demoButton.addEventListener("click", loadDemo);
+      els.exportButton.addEventListener("click", exportPng);
+      els.fileInput.addEventListener("change", (event) => { publishImport(event.target.files, 'files'); readFiles(event.target.files); event.target.value = ''; });
+      els.folderInput.addEventListener("change", (event) => { publishImport(event.target.files, 'folder'); readFolder(event.target.files); event.target.value = ''; });
+      els.keydataSelect.addEventListener('change', () => { chartInteractions.reset(); state.keydataIndex = Number(els.keydataSelect.value); updateAll(); });
+      els.motSelect.addEventListener('change', () => { chartInteractions.reset(); state.motIndex = Number(els.motSelect.value); updateAll(); });
+      els.taskSelect.addEventListener("change", () => {
+        if (!state.folder) return;
+        const record = state.folder.records.find((item) => item.id === els.taskSelect.value);
+        selectFolderRecord(record);
+      });
+      els.clearFolderButton.addEventListener("click", () => {
+        chartInteractions.reset();
+        state.importVersion += 1;
+        pendingWorkspaceSelection = null;
+        state.singleMot = null;
+        state.motIndex = 0;
+        state.folder = null;
+        state.selectedRecordId = "";
+        renderFolderTasks();
+        updateAll();
+        showToast("已清空文件夹任务");
+      });
+      [els.timeColumn, els.pressureColumn, els.temperatureColumn, els.salinityColumn].forEach((select) => {
+        select.addEventListener("change", () => {
+          const key = { timeColumn: "time", pressureColumn: "pressure", temperatureColumn: "temperature", salinityColumn: "salinity" }[select.id];
+          chartInteractions.reset();
+          state.columns[key] = Number(select.value); updateAll();
+        });
+      });
+      [els.invertDepth, els.showPoints, els.showLevel].forEach((input) => input.addEventListener("change", renderCharts));
+      document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
+        state.mode = tab.dataset.mode;
+        document.querySelectorAll(".tab").forEach((item) => item.classList.toggle("active", item === tab));
+        updateAll();
+      }));
+      ["dragenter", "dragover"].forEach((eventName) => els.dropzone.addEventListener(eventName, (event) => { event.preventDefault(); els.dropzone.classList.add("dragover"); }));
+      ["dragleave", "drop"].forEach((eventName) => els.dropzone.addEventListener(eventName, (event) => { event.preventDefault(); els.dropzone.classList.remove("dragover"); }));
+      els.dropzone.addEventListener("drop", (event) => {
+        const droppedFiles = Array.from(event.dataTransfer.files || []);
+        const hasFolderPaths = droppedFiles.some((file) => file.webkitRelativePath);
+        const hasMultipleCtd = droppedFiles.filter((file) => CtdData.fileMeta(file.name)).length > 1;
+        const importMode = hasFolderPaths || hasMultipleCtd ? 'folder' : 'files';
+        publishImport(droppedFiles, importMode);
+        if (importMode === 'folder') readFolder(droppedFiles);
+        else readFiles(droppedFiles);
+      });
+      els.dropzone.addEventListener("click", () => els.fileInput.click());
+      els.dropzone.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); els.fileInput.click(); } });
+      window.addEventListener("resize", () => renderCharts());
+
+      loadDemo();
+      loadServerCatalog();
+    })();
+  </script>
+  <script src="ctd-log-panel.js"></script>
+  <script src="abysslens-ux.js"></script>
+</body>
+</html>

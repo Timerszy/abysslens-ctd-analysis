@@ -1,0 +1,130 @@
+/* Local analysis controls stay beside the plot they affect. */
+.analysis-page .chart-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line, #d6e1e9);
+}
+.chart-tool-modes,
+.chart-tool-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.analysis-page .chart-tools .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--line, #d6e1e9);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--muted, #52677b);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 600;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.analysis-page .chart-tools .button:hover:not(:disabled) {
+  background: #f1f7f9;
+  border-color: #8aafb9;
+  color: var(--ink, #172e43);
+}
+.analysis-page .chart-tools .chart-tool-mode[aria-pressed="true"] {
+  border-color: #68a8ad;
+  background: var(--teal-soft, #e6f4f3);
+  color: var(--teal-dark, #065c64);
+  box-shadow: inset 0 0 0 1px #c8e5e5;
+}
+.analysis-page .chart-tools .chart-tool-icon {
+  min-width: 36px;
+  padding-inline: 9px;
+  color: var(--ink, #172e43);
+}
+.analysis-page .chart-tools .chart-tool-icon[data-action="zoom-in"],
+.analysis-page .chart-tools .chart-tool-icon[data-action="zoom-out"] {
+  font-size: 18px;
+  font-weight: 500;
+}
+.analysis-page .chart-tools .button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+.analysis-page .chart-viewport-status {
+  margin: 8px 0 0;
+  color: var(--muted, #52677b);
+  font-size: 12px;
+  line-height: 1.7;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.analysis-page .chart-viewport-status.is-zoomed {
+  color: var(--teal-dark, #065c64);
+  font-weight: 600;
+}
+.analysis-page .chart-card.is-zoomed .chart-stat:not(:empty)::before {
+  content: '全任务 ';
+  font-weight: 400;
+}
+.analysis-page .chart-tools + .chart-viewport-status + .canvas-wrap {
+  margin-top: 8px;
+}
+.chart-selection {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  border: 2px solid var(--teal, #087c80);
+  background: rgb(8 124 128 / 12%);
+  pointer-events: none;
+}
+.canvas-wrap canvas[data-interaction] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.canvas-wrap canvas[data-interaction="inspect"] {
+  cursor: default;
+  touch-action: auto;
+}
+.canvas-wrap canvas[data-interaction="select"] {
+  cursor: crosshair;
+  touch-action: none;
+}
+.canvas-wrap canvas[data-interaction="pan"] {
+  cursor: grab;
+  touch-action: none;
+}
+.canvas-wrap canvas[data-interaction="pan"].is-dragging {
+  cursor: grabbing;
+}
+.analysis-page .chart-tools .button:focus-visible,
+.canvas-wrap canvas[data-interaction]:focus-visible {
+  outline: 3px solid #167cbe;
+  outline-offset: 3px;
+}
+@media (max-width: 600px), (pointer: coarse) {
+  .analysis-page .chart-tools {
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+  }
+  .analysis-page .chart-tools .button {
+    min-height: 44px;
+    padding: 8px 10px;
+  }
+  .analysis-page .chart-tools .chart-tool-icon {
+    min-width: 44px;
+  }
+  .analysis-page .chart-viewport-status {
+    line-height: 1.65;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .analysis-page .chart-tools .button { transition: none; }
+}

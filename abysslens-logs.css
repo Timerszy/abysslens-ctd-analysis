@@ -1,0 +1,133 @@
+/* Standalone and embedded daily logs share one viewer and one visual language. */
+.logs-page {
+  --log-ink: var(--ink, #17314d);
+  --log-muted: var(--muted, #60748b);
+  --log-line: var(--line, #dce5ed);
+  --log-teal: var(--teal, #087f87);
+  background: #f3f6fa;
+  color: var(--log-ink);
+}
+.logs-page .topbar { padding: 18px 28px; box-shadow: 0 1px 0 rgba(22, 49, 77, .03); }
+.logs-page .brand-mark { border-radius: 12px; padding: 10px 12px; background: #16364e; }
+.logs-page .brand strong { font-size: 18px; letter-spacing: -.3px; }
+.logs-page .brand small { font-size: 12px; }
+.logs-page main { max-width: 1640px; padding-top: 30px; }
+.logs-page .intro { margin-bottom: 22px; align-items: center; }
+.logs-page h1 { font-size: 26px; font-weight: 720; letter-spacing: -.6px; }
+.logs-page .intro p { margin-top: 7px; line-height: 1.7; }
+.logs-page #loadStatus { padding: 7px 12px; border: 1px solid #cce4e7; border-radius: 20px; background: #edf8f8; font-size: 12px; }
+.logs-page .panel { border-radius: 14px; padding: 20px; box-shadow: 0 5px 18px rgba(22, 49, 77, .025); }
+.logs-page .field label { font-size: 12px; font-weight: 600; color: #526a80; }
+.logs-page .field input, .logs-page .field select { min-height: 44px; border-color: #cbd9e5; border-radius: 8px; }
+.logs-page .field input:hover, .logs-page .field select:hover { border-color: #9db8ca; }
+.logs-page :is(button, a, input, select, summary):focus-visible { outline: 3px solid #168f9a; outline-offset: 3px; }
+.logs-page .button { min-height: 44px; border-radius: 8px; transition: background-color 150ms ease, border-color 150ms ease; }
+.logs-page .button.primary { background: var(--log-teal); border-color: var(--log-teal); }
+.logs-page .button.primary:hover { background: #086871; border-color: #086871; }
+.logs-page .quick-keywords { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+.logs-page .quick-keywords-label { margin-right: 2px; color: #526a80; font-size: 12px; font-weight: 600; }
+.logs-page .keyword-button { min-width: 54px; min-height: 44px; padding: 7px 13px; border: 1px solid #d6e2eb; border-radius: 8px; background: #f8fafc; color: #425e76; font-size: 12px; font-weight: 600; transition: background-color 150ms ease, border-color 150ms ease; }
+.logs-page .keyword-button:hover { border-color: #82b9be; background: #edf7f7; }
+.logs-page .keyword-button[aria-pressed="true"] { border-color: #63a7af; color: #075d67; background: #e3f2f3; box-shadow: inset 0 0 0 1px #c4e3e6; }
+.logs-page .quick-keywords-note { color: var(--log-muted); font-size: 12px; }
+.logs-page .filter-bottom { align-items: flex-end; padding-top: 14px; border-top: 1px solid #edf1f5; }
+.logs-page .types { gap: 18px; min-height: 44px; }
+.logs-page .types label { min-height: 44px; cursor: pointer; }
+.logs-page .badge { border-radius: 5px; min-width: 48px; padding: 2px 7px; text-align: center; font-size: 11px; line-height: 1.7; font-weight: 700; }
+.logs-page .badge.dlog { background: #e9edfa; color: #4a5594; }
+.logs-page .badge.tlog { background: #e1f2f1; color: #076d72; }
+.logs-page .hint { font-size: 12px; line-height: 1.7; }
+.logs-page .firmware-reference { border-top: 1px solid #e8eef3; padding-top: 12px; line-height: 1.7; }
+.logs-page .firmware-reference summary { width: fit-content; min-height: 30px; padding: 3px 0; font-weight: 600; }
+.logs-page .firmware-reference p { max-width: 1050px; }
+.logs-page .summary { margin: 24px 0 12px; }
+.logs-page .result-eyebrow { display: block; color: #62788b; font-size: 11px; font-weight: 600; letter-spacing: .5px; margin-bottom: 4px; }
+.logs-page .summary h2 { font-size: 17px; line-height: 1.5; font-weight: 700; }
+.logs-page .summary small { font-size: 12px; line-height: 1.7; }
+.logs-page .table-wrap { border-radius: 12px; border-color: var(--log-line); box-shadow: 0 3px 14px rgba(22, 49, 77, .025); }
+.logs-page th { color: #536c82; background: #eef3f8; font-size: 12px; padding: 13px 14px; }
+.logs-page td { padding: 15px 14px; border-bottom-color: #e5ecf2; line-height: 1.6; }
+.logs-page tbody tr { background: #fff; }
+.logs-page tbody tr:nth-child(even) { background: #f8fafc; }
+.logs-page tbody tr:hover { background: #eff6f9; }
+.logs-page tr[data-kind="dlog"] .time-cell { box-shadow: inset 3px 0 #8998c3; }
+.logs-page tr[data-kind="tlog"] .time-cell { box-shadow: inset 3px 0 #55a6aa; }
+.logs-page .time { color: #344f69; font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.logs-page .task-cell { color: #526a80; font-size: 12px; font-variant-numeric: tabular-nums; }
+.logs-page .message { color: #18344e; font-size: 13px; line-height: 1.8; }
+.logs-page .source { font-size: 12px; line-height: 1.6; color: #63788b; }
+.logs-page .source-path { display: block; overflow-wrap: anywhere; }
+.logs-page .source small { color: #5e7c88; font-size: 12px; line-height: 1.6; }
+.logs-page .raw { color: #62788b; font-size: 12px; }
+.logs-page .raw summary { min-height: 28px; padding: 3px 0; }
+.logs-page .raw pre { padding: 10px 12px; background: #eef3f7; border: 1px solid #dce6ed; border-radius: 7px; color: #3a566c; font: 12px/1.7 Consolas, "Microsoft YaHei", monospace; }
+.logs-page #emptyState { padding: 54px 24px; font-size: 13px; line-height: 1.8; }
+.logs-page .pager { font-size: 12px; }
+.logs-page details.files { border-radius: 10px; font-size: 12px; line-height: 1.7; }
+.logs-page details.files summary { min-height: 32px; padding: 5px 0; }
+.logs-page .footer { font-size: 12px; line-height: 1.8; }
+
+/* The side pane uses cards so time, message and source remain easy to scan. */
+.log-embedded .logs-page { background: #f3f6fa; }
+.log-embedded .logs-page main { padding: 12px 12px 20px; }
+.log-embedded .logs-page .panel { padding: 12px; border-radius: 10px; margin-bottom: 12px; }
+.log-embedded .logs-page .filter-grid { grid-template-columns: minmax(0, 1fr) 137px; gap: 10px; }
+.log-embedded .logs-page .field label { font-size: 12px; line-height: 1.4; margin-bottom: 5px; }
+.log-embedded .logs-page .field :is(input, select) { min-height: 40px; height: 40px; font-size: 12px; padding: 8px; }
+.log-embedded .logs-page .quick-keywords { gap: 6px; margin-top: 10px; }
+.log-embedded .logs-page .keyword-button { min-width: 50px; min-height: 40px; padding: 7px 12px; }
+.log-embedded .logs-page .quick-keywords-note { display: none; }
+.log-embedded .logs-page .filter-bottom { padding-top: 10px; margin-top: 10px; gap: 8px; }
+.log-embedded .logs-page .types, .log-embedded .logs-page .types label { min-height: 40px; }
+.log-embedded .logs-page #resetFilters { min-height: 40px; padding: 6px 9px; font-size: 12px; }
+.log-embedded .logs-page #scopeHint { font-size: 12px; line-height: 1.6; }
+.log-embedded .logs-page .firmware-reference { font-size: 12px; }
+.log-embedded .logs-page .firmware-reference summary { line-height: 1.6; min-height: 34px; }
+.log-embedded .logs-page .summary { margin: 14px 0 10px; }
+.log-embedded .logs-page .result-eyebrow { margin-bottom: 3px; font-size: 11px; }
+.log-embedded .logs-page .summary h2 { font-size: 14px; }
+.log-embedded .logs-page .summary small { font-size: 12px; }
+.log-embedded .logs-page .notice { padding: 10px; font-size: 12px; line-height: 1.6; }
+.log-embedded .logs-page .table-wrap { border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
+.log-embedded .logs-page tbody tr { grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px 8px; padding: 12px; margin-bottom: 10px; border: 1px solid #dce5ed; border-left: 3px solid #dce5ed; border-radius: 9px; background: #fff; }
+.log-embedded .logs-page tr[data-kind="dlog"] { border-left-color: #8998c3; }
+.log-embedded .logs-page tr[data-kind="tlog"] { border-left-color: #55a6aa; }
+.log-embedded .logs-page td { padding: 0; border: 0; }
+.log-embedded .logs-page .time-cell { grid-column: 1; font-size: 12px; font-weight: 650; }
+.log-embedded .logs-page tr[data-kind] .time-cell { box-shadow: none; }
+.log-embedded .logs-page .kind-cell { grid-column: 2; }
+.log-embedded .logs-page .task-cell { grid-column: 3; padding-top: 1px; font-size: 12px; }
+.log-embedded .logs-page .badge { min-width: 44px; padding: 1px 5px; }
+.log-embedded .logs-page .message-cell { margin: 2px 0 0; }
+.log-embedded .logs-page .message { font-size: 13px; line-height: 1.8; }
+.log-embedded .logs-page .source-cell { border-top: 1px solid #edf1f5; padding-top: 8px; font-size: 12px; }
+.log-embedded .logs-page .source small { margin-top: 3px; font-size: 12px; }
+.log-embedded .logs-page .raw { margin-top: 5px; font-size: 12px; }
+.log-embedded .logs-page #emptyState { padding: 36px 18px; border: 1px solid #dce5ed; border-radius: 9px; }
+.log-embedded .logs-page .pager { gap: 8px; font-size: 12px; }
+.log-embedded .logs-page .pager .button { min-height: 40px; font-size: 12px; padding: 6px 10px; }
+.log-embedded .logs-page details.files { padding: 10px 12px; font-size: 12px; }
+.log-embedded .logs-page .footer { font-size: 12px; }
+
+@media (max-width: 700px) {
+  .logs-page .topbar { padding: 16px; }
+  .logs-page main { padding: 20px 14px 30px; }
+  .logs-page h1 { font-size: 23px; }
+  .logs-page .intro { align-items: stretch; }
+  .logs-page #loadStatus { width: fit-content; margin-top: 12px; }
+  .logs-page .panel { padding: 14px; }
+  .logs-page .quick-keywords-note { width: 100%; margin-top: 2px; }
+  .logs-page .summary h2 { font-size: 15px; }
+  .logs-page .table-wrap { border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
+  .logs-page tbody tr { gap: 5px 8px; padding: 14px; margin-bottom: 10px; border: 1px solid #dce5ed; border-left: 3px solid #dce5ed; border-radius: 9px; background: #fff; }
+  .logs-page tbody tr:nth-child(even) { background: #fff; }
+  .logs-page tr[data-kind="dlog"] { border-left-color: #8998c3; }
+  .logs-page tr[data-kind="tlog"] { border-left-color: #55a6aa; }
+  .logs-page td { padding: 0; border: 0; }
+  .logs-page tr[data-kind] .time-cell { box-shadow: none; }
+  .logs-page .message { font-size: 13px; }
+  .logs-page .source-cell { border-top: 1px solid #edf1f5; padding-top: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .logs-page :is(.button, .keyword-button) { transition: none; }
+}

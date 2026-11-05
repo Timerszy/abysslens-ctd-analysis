@@ -1,0 +1,95 @@
+/* CTD's log pane shares the existing daily viewer, not a second parsing implementation. */
+.workspace.with-log-panel {
+  grid-template-columns: 242px minmax(0, 1fr) clamp(360px, 34vw, 540px);
+  height: calc(100dvh - var(--ctd-topbar-height, 72px));
+  min-height: 0;
+}
+.with-log-panel > .main, .with-log-panel > .sidebar {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.with-log-panel > .main { padding: 22px 20px 36px; }
+.with-log-panel .folder-panel-head { display: block; }
+.with-log-panel .folder-panel-head strong { display: block; margin-bottom: 4px; }
+.with-log-panel .folder-panel-head span { display: block; text-align: left; }
+.with-log-panel .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.with-log-panel .page-head { flex-wrap: wrap; gap: 8px; }
+.with-log-panel .page-head-right { max-width: 100%; text-align: left; }
+.log-side-panel {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-left: 1px solid #d8e0e2;
+  overflow: hidden;
+}
+.log-side-panel[hidden] { display: none; }
+.log-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 13px 12px; border-bottom: 1px solid #d8e0e2; }
+.log-pane-head strong { display: block; font-size: 15px; }
+.log-pane-head small { display: block; font-size: 10px; color: #687386; margin-top: 3px; }
+.log-pane-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.log-pane-actions .button { display: inline-flex; align-items: center; padding: 0 8px; min-height: 30px; font-size: 11px; white-space: nowrap; text-decoration: none; }
+#logPaneFrame { display: block; border: 0; width: 100%; flex: 1; height: 0; min-height: 0; background: #fff; }
+#toggleLogPane[aria-expanded="true"] { color: #075e60; background: #e4f2ef; border-color: #a9c4c1; }
+@media (min-width: 1500px) {
+  .with-log-panel .summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 1450px) {
+  .with-log-panel .charts-grid { grid-template-columns: minmax(0, 1fr); }
+  .with-log-panel .chart-card.wide { grid-column: auto; }
+  .with-log-panel .facts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 1100px) {
+  .workspace.with-log-panel { grid-template-columns: minmax(0, 1fr) minmax(330px, 42%); height: auto; }
+  .with-log-panel > .sidebar { grid-column: 1 / -1; height: auto; max-height: 190px; border-bottom: 1px solid #d8e0e2; }
+  .with-log-panel > .main, .with-log-panel > .log-side-panel { height: calc(100dvh - var(--ctd-topbar-height, 72px) - 190px); min-height: 460px; }
+}
+@media (max-width: 730px) {
+  .workspace.with-log-panel { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .with-log-panel > .sidebar { grid-column: auto; max-height: 240px; }
+  .with-log-panel > .main, .with-log-panel > .log-side-panel { height: 65dvh; min-height: 460px; }
+  .log-side-panel { border-left: 0; border-top: 1px solid #d8e0e2; }
+  .with-log-panel > .main { padding: 18px 14px 28px; }
+}
+
+/* Compact layout only inside the side pane. Standalone log pages stay unchanged. */
+html.log-embedded body { background: #fff; }
+.log-embedded .topbar, .log-embedded .intro, .log-embedded .legend-note { display: none; }
+.log-embedded main { padding: 10px 12px 18px; }
+.log-embedded .panel { padding: 10px; margin-bottom: 10px; border-radius: 7px; }
+.log-embedded .filter-grid { grid-template-columns: minmax(0, 1fr) 133px; gap: 8px; }
+.log-embedded .search-field { grid-column: 1 / -1; }
+.log-embedded .field label { font-size: 11px; margin-bottom: 3px; }
+.log-embedded .field select, .log-embedded .field input { height: 34px; padding: 6px 8px; font-size: 12px; }
+.log-embedded .filter-bottom { gap: 8px; margin-top: 8px; align-items: center; }
+.log-embedded .types { width: auto; min-height: 28px; gap: 10px; }
+.log-embedded .times { order: 2; width: 100%; gap: 7px; }
+.log-embedded .times .field { flex: 1; min-width: 0; }
+.log-embedded .times input { width: 100%; }
+.log-embedded #resetFilters { margin-left: auto; padding: 5px 8px; min-height: 28px; font-size: 11px; }
+.log-embedded .hint { display: none; }
+.log-embedded #scopeHint { display: block; font-size: 10px; margin-top: 8px; }
+.log-embedded .summary { margin: 10px 0 8px; }
+.log-embedded .summary h2 { font-size: 13px; }
+.log-embedded .summary small { font-size: 11px; }
+.log-embedded .notice { margin-bottom: 9px; padding: 8px; font-size: 11px; }
+.log-embedded table, .log-embedded tbody { display: block; }
+.log-embedded thead { display: none; }
+.log-embedded tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 3px 8px; padding: 9px 10px; border-bottom: 1px solid #d8e0e2; }
+.log-embedded td { padding: 0; border: 0; }
+.log-embedded .time-cell { grid-column: 1; order: 0; font-size: 11px; }
+.log-embedded .kind-cell { grid-column: 2; order: 0; }
+.log-embedded .task-cell { grid-column: 3; order: 0; font-size: 11px; }
+.log-embedded .message-cell { grid-column: 1 / -1; order: 1; margin: 3px 0; }
+.log-embedded .message { font-size: 12px; }
+.log-embedded .source-cell { grid-column: 1 / -1; order: 2; font-size: 10px; }
+.log-embedded .source small { margin-top: 2px; }
+.log-embedded .raw { margin-top: 4px; font-size: 10px; }
+.log-embedded .pager { gap: 6px; margin: 10px 0; font-size: 10px; flex-wrap: wrap; }
+.log-embedded .pager .button { min-height: 28px; padding: 4px 7px; font-size: 11px; }
+.log-embedded details.files { padding: 9px; font-size: 11px; }
+.log-embedded .footer { font-size: 10px; margin-top: 12px; }
