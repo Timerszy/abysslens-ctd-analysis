@@ -338,9 +338,11 @@
         <a class="button" id="logsLink" href="ctd-logs.html" target="_blank" rel="noopener">当天日志 ↗</a>
         <button class="button" id="exportButton" type="button">导出 PNG</button>
         <button class="button" id="openButton" type="button">导入 CSV</button>
-        <button class="button primary" id="folderButton" type="button">导入文件夹</button>
+        <button class="button" id="addDeviceButton" type="button" title="添加设备文件夹，保留已导入的数据">添加设备</button>
+        <button class="button primary" id="folderButton" type="button" title="导入完整文件夹，替换当前全部设备数据">导入文件夹</button>
         <input class="file-input" id="fileInput" type="file" accept=".csv,.txt,text/csv,text/plain">
         <input class="file-input" id="folderInput" type="file" webkitdirectory directory multiple>
+        <input class="file-input" id="addDeviceInput" type="file" webkitdirectory directory multiple>
       </div>
     </header>
 
@@ -355,8 +357,10 @@
           <div class="file-meta" id="fileMeta">当前显示内置示例数据</div>
           <div class="folder-panel" id="folderPanel" hidden>
             <div class="folder-panel-head"><strong>文件夹任务</strong><span id="folderMeta">—</span></div>
+            <div class="field"><label for="deviceSelect">分析设备 / 来源目录</label><select class="task-select" id="deviceSelect" disabled></select></div>
+            <p class="disclosure-hint">“添加设备”保留现有数据；“导入文件夹”替换整批。也可一次导入包含多个设备的上级目录。</p>
             <select class="task-select" id="taskSelect" aria-label="选择 CTD 任务" disabled></select>
-            <button class="button subtle folder-clear" id="clearFolderButton" type="button">清空文件夹</button>
+            <button class="button subtle folder-clear" id="clearFolderButton" type="button">清空设备数据</button>
           </div>
         </section>
 
@@ -440,6 +444,7 @@
   <script src="ctd-mot.js"></script>
   <script src="ctd-diagnostics.js"></script>
   <script src="ctd-workspace.js"></script>
+  <script src="ctd-device-import.js"></script>
   <script src="ctd-chart-viewport.js"></script>
   <script src="ctd-chart-interactions.js"></script>
   <script src="ctd-replay.js"></script>
@@ -466,12 +471,15 @@
         motIndex: 0,
         mot: null,
         singleMot: null,
-        importVersion: 0
+        importVersion: 0,
+        folderVersion: 0
       };
 
       const els = {
         fileInput: document.getElementById("fileInput"),
         folderInput: document.getElementById("folderInput"),
+        addDeviceInput: document.getElementById("addDeviceInput"),
+        addDeviceButton: document.getElementById("addDeviceButton"),
         openButton: document.getElementById("openButton"),
         folderButton: document.getElementById("folderButton"),
         demoButton: document.getElementById("demoButton"),
@@ -481,6 +489,7 @@
         folderPanel: document.getElementById("folderPanel"),
         folderMeta: document.getElementById("folderMeta"),
         taskSelect: document.getElementById("taskSelect"),
+        deviceSelect: document.getElementById("deviceSelect"),
         clearFolderButton: document.getElementById("clearFolderButton"),
         statusBadge: document.getElementById("statusBadge"),
         timeColumn: document.getElementById("timeColumn"),
@@ -638,6 +647,19 @@
         workspace.replace(entries, { source: 'manual', importMode, folderName });
       }
 
+      async function addDevice(fileList) {
+        const entries = sharedFileEntries(fileList);
+        if (!entries.length) { showToast('所选目录没有可读取的数据文件，已保留当前数据', true); return; }
+        els.addDeviceButton.disabled = true;
+        try {
+          const result = await CtdDeviceImport.append(workspace, entries);
+          const selected = state.folder?.records.find(record => record.id === state.selectedRecordId);
+          pendingWorkspaceSelection = selected ? { ...taskContext(selected), publishAfterRestore: true } : null;
+          await readFolder(result.batch.entries);
+        } catch (error) { showToast(`添加设备未完成：${error.message}`, true); }
+        finally { els.addDeviceButton.disabled = false; }
+      }
+
       function clearCtdForBatch(message) {
         chartInteractions.reset();
         state.singleMot = null;
@@ -658,12 +680,21 @@
       function taskContext(record) {
         if (!record || !/^\d{6}$/.test(record.date)) return null;
         const [parent, device] = JSON.parse(record.taskKey), parts = parent.split('/');
-        if (parts[parts.length - 1] === record.date) parts.pop();
+        const day = `20${record.date.slice(0, 2)}-${record.date.slice(2, 4)}-${record.date.slice(4, 6)}`;
+        if ([record.date, day].includes(parts[parts.length - 1])) parts.pop();
         return {
-          day: `20${record.date.slice(0, 2)}-${record.date.slice(2, 4)}-${record.date.slice(4, 6)}`,
+          day,
           scopeKey: JSON.stringify([parts.join('/'), device]),
           recordId: record.id
         };
+      }
+
+      function deviceLabel(record) {
+        const context = taskContext(record);
+        if (!context) return '设备未核验';
+        const [directory, prefix] = JSON.parse(context.scopeKey);
+        const parts = directory.split('/').filter(Boolean), device = parts.pop() || '设备未核验';
+        return `${device} · ${prefix}${parts.length ? ' · 来源 ' + parts.join('/') : ''}`;
       }
 
       function publishTaskContext(record) {
@@ -672,7 +703,8 @@
       }
 
       function receiveWorkspaceBatch(batch) {
-        pendingWorkspaceSelection = null;
+        const selected = state.folder?.records.find(record => record.id === state.selectedRecordId);
+        pendingWorkspaceSelection = batch.meta?.append && selected ? { ...taskContext(selected), publishAfterRestore: true } : null;
         if (batch.meta?.source === 'server') {
           loadServerCatalog(false);
           return;
@@ -687,6 +719,8 @@
 
       function applyWorkspaceSelection(context) {
         pendingWorkspaceSelection = context || null;
+        // A selection for the incoming batch must wait until its files finish loading.
+        if (state.folderVersion !== state.importVersion) return;
         if (!state.folder || !context?.recordId) return;
         const record = state.folder.records.find(item => item.id === context.recordId);
         if (record && record.id !== state.selectedRecordId) selectFolderRecord(record, false, false);
@@ -699,19 +733,38 @@
           els.folderPanel.hidden = true;
           els.taskSelect.innerHTML = "";
           els.taskSelect.disabled = true;
+          els.deviceSelect.replaceChildren();
+          els.deviceSelect.disabled = true;
           return;
         }
         els.folderPanel.hidden = false;
-        els.folderMeta.textContent = `${folder.folderName} · ${folder.taskCount} 个剖面 · CTD ${folder.records.length} / keydata ${folder.keydataCount || 0} / level ${folder.levelCount || 0} / mot ${folder.motCount || 0}`;
+        const devices = new Map();
+        folder.records.forEach(record => {
+          const scope = taskContext(record)?.scopeKey || '';
+          if (!devices.has(scope)) devices.set(scope, { label: deviceLabel(record), records: [] });
+          devices.get(scope).records.push(record);
+        });
+        const active = folder.records.find(record => record.id === state.selectedRecordId) || folder.records[0];
+        const activeScope = taskContext(active)?.scopeKey || '';
+        els.deviceSelect.replaceChildren();
+        devices.forEach((device, scope) => {
+          const option = document.createElement('option'); option.value = scope;
+          option.textContent = `${device.label} · ${new Set(device.records.map(record => record.taskKey)).size} 个剖面`;
+          option.title = option.textContent;
+          els.deviceSelect.append(option);
+        });
+        els.deviceSelect.disabled = false; els.deviceSelect.value = activeScope;
+        folder.deviceCount = devices.size;
+        els.folderMeta.textContent = `${devices.size} 个设备来源 · ${folder.taskCount} 个剖面 · CTD ${folder.records.length} / keydata ${folder.keydataCount || 0} / level ${folder.levelCount || 0} / mot ${folder.motCount || 0}`;
         els.taskSelect.innerHTML = "";
         const groups = new Map();
-        folder.records.forEach((record) => {
+        devices.get(activeScope).records.forEach((record) => {
           if (!groups.has(record.date)) groups.set(record.date, []);
           groups.get(record.date).push(record);
         });
         Array.from(groups.keys()).sort((a, b) => String(b).localeCompare(String(a))).forEach((date) => {
           const group = document.createElement("optgroup");
-          group.label = formatDateCode(date);
+          group.label = `${deviceLabel(active)} · ${formatDateCode(date)}`;
           groups.get(date).forEach((record) => {
             const option = document.createElement("option");
             option.value = record.id;
@@ -723,19 +776,23 @@
           els.taskSelect.appendChild(group);
         });
         els.taskSelect.disabled = false;
-        els.taskSelect.value = state.selectedRecordId || folder.records[0].id;
+        els.taskSelect.value = active.id;
       }
 
       function selectFolderRecord(record, notify = true, publish = true) {
         if (!record) return;
+        if (publish && state.folderVersion !== state.importVersion) {
+          pendingWorkspaceSelection = { ...taskContext(record), publishAfterRestore: true };
+        }
         state.selectedRecordId = record.id;
         state.keydataIndex = 0;
         state.motIndex = 0;
         state.singleMot = null;
+        if (!Array.from(els.taskSelect.options).some(option => option.value === record.id)) renderFolderTasks();
         if (els.taskSelect.value !== record.id) els.taskSelect.value = record.id;
         setDataset(record.dataset, record.name, record.encoding);
         if (publish) publishTaskContext(record);
-        if (notify) showToast(`已切换到 ${record.date} · 剖面 ${record.profile}`);
+        if (notify) showToast(`已切换到 ${deviceLabel(record)} · ${record.date} · 剖面 ${record.profile}`);
       }
 
       function setDataset(dataset, fileName, encoding) {
@@ -1139,8 +1196,8 @@
         document.getElementById('pressureUnit').textContent = state.depthUnit === 'unknown' ? '单位未识别' : state.depthUnit;
         els.statTemperature.textContent = formatRange(temperature, 2);
         els.statSalinity.textContent = formatRange(salinity, 3);
-        els.pageFileLabel.textContent = `${state.fileName} · ${state.rows.length} 个采样点`;
         const activeRecord = state.folder?.records.find((record) => record.id === state.selectedRecordId);
+        els.pageFileLabel.textContent = `${activeRecord ? deviceLabel(activeRecord) + ' · ' : ''}${state.fileName} · ${state.rows.length} 个采样点`;
         els.fileMeta.textContent = activeRecord
           ? `${activeRecord.relativePath} · ${state.encoding} · ${state.rawRows.length} 行`
           : `${state.fileName} · ${state.encoding} · ${state.rawRows.length} 行`;
@@ -1303,6 +1360,7 @@
         if (!library.records.length) throw new Error('未找到可绘制的 CTD；请导入含 CTD、keydata、level、mot 的完整文件夹；单个 mot 可用“导入 CSV”');
         library.records.forEach(record => { record.rowCount = record.dataset.rows.length; });
         state.folder = { ...library, folderName, origin };
+        state.folderVersion = state.importVersion;
         state.folder.failures = failures;
         const restored = pendingWorkspaceSelection?.recordId
           ? library.records.find(record => record.id === pendingWorkspaceSelection.recordId)
@@ -1310,9 +1368,9 @@
         const initialRecord = restored || library.records[0];
         state.selectedRecordId = initialRecord.id;
         renderFolderTasks();
-        selectFolderRecord(initialRecord, false, !restored);
+        selectFolderRecord(initialRecord, false, !restored || Boolean(pendingWorkspaceSelection?.publishAfterRestore));
         if (restored) pendingWorkspaceSelection = null;
-        showToast(`已载入 ${library.taskCount} 个剖面，keydata ${library.keydataCount} 份，level ${library.levelCount} 份，mot ${library.motCount} 份${failures.length ? `；跳过 ${failures.length} 个文件（数据源处可查看）` : ''}`);
+        showToast(`已载入 ${state.folder.deviceCount} 个设备来源、${library.taskCount} 个剖面，keydata ${library.keydataCount} 份，level ${library.levelCount} 份，mot ${library.motCount} 份${failures.length ? `；跳过 ${failures.length} 个文件（数据源处可查看）` : ''}`);
       }
 
       async function loadServerCatalog(publishServer = true) {
@@ -1411,28 +1469,31 @@
 
       els.openButton.addEventListener("click", () => els.fileInput.click());
       els.folderButton.addEventListener("click", () => els.folderInput.click());
-      els.demoButton.addEventListener("click", loadDemo);
+      els.addDeviceButton.addEventListener('click', () => els.addDeviceInput.click());
+      els.addDeviceInput.addEventListener('change', event => { const files = Array.from(event.target.files); event.target.value = ''; addDevice(files); });
+      els.demoButton.addEventListener("click", () => {
+        workspace.replace([], { source: 'manual', importMode: 'folder', folderName: '示例数据' });
+        loadDemo();
+      });
       els.exportButton.addEventListener("click", exportPng);
       els.fileInput.addEventListener("change", (event) => { publishImport(event.target.files, 'files'); readFiles(event.target.files); event.target.value = ''; });
       els.folderInput.addEventListener("change", (event) => { publishImport(event.target.files, 'folder'); readFolder(event.target.files); event.target.value = ''; });
       els.keydataSelect.addEventListener('change', () => { chartInteractions.reset(); state.keydataIndex = Number(els.keydataSelect.value); updateAll(); });
       els.motSelect.addEventListener('change', () => { chartInteractions.reset(); state.motIndex = Number(els.motSelect.value); updateAll(); });
+      els.deviceSelect.addEventListener('change', () => {
+        const record = state.folder?.records.find(record => taskContext(record)?.scopeKey === els.deviceSelect.value);
+        if (record) { state.selectedRecordId = record.id; renderFolderTasks(); selectFolderRecord(record); }
+      });
       els.taskSelect.addEventListener("change", () => {
         if (!state.folder) return;
         const record = state.folder.records.find((item) => item.id === els.taskSelect.value);
         selectFolderRecord(record);
       });
       els.clearFolderButton.addEventListener("click", () => {
-        chartInteractions.reset();
         state.importVersion += 1;
         pendingWorkspaceSelection = null;
-        state.singleMot = null;
-        state.motIndex = 0;
-        state.folder = null;
-        state.selectedRecordId = "";
-        renderFolderTasks();
-        updateAll();
-        showToast("已清空文件夹任务");
+        workspace.replace([], { source: 'manual', importMode: 'folder', folderName: '空数据' });
+        clearCtdForBatch('已清空设备数据');
       });
       [els.timeColumn, els.pressureColumn, els.temperatureColumn, els.salinityColumn].forEach((select) => {
         select.addEventListener("change", () => {

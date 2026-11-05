@@ -36,15 +36,22 @@
     state.folderName = settings.folderName; state.failures = settings.failures || [];
     state.day = settings.day || state.pendingSelection?.day || ''; state.scopeKey = '';
     clearFilters(); $('scopeSelect').replaceChildren(); $('dateSelect').replaceChildren();
-    const groups = new Map(); records.forEach(record => { if (!groups.has(record.scopeKey)) groups.set(record.scopeKey, record.scopeLabel); });
+    const groups = new Map(); records.forEach(record => {
+      if (groups.has(record.scopeKey)) return;
+      const parts = record.directory.split('/').filter(Boolean), device = parts.pop();
+      const label = settings.kind !== 'files' && device
+        ? `${device} · ${record.device}${parts.length ? ' · 来源 ' + parts.join('/') : ''}`
+        : record.scopeLabel;
+      groups.set(record.scopeKey, label);
+    });
     const requestedScope = settings.scopeKey || state.pendingSelection?.scopeKey || '';
     if (requestedScope && !groups.has(requestedScope)) {
       groups.set(requestedScope, 'CTD 所选来源（未发现日志）');
       state.failures.push('当前 CTD 来源没有找到日志，未自动切换到其他设备。请导入相应设备的日志文件夹。');
     }
-    groups.forEach((label, key) => $('scopeSelect').append(option(key, label)));
+    groups.forEach((label, key) => { const item = option(key, label); item.title = label; $('scopeSelect').append(item); });
     $('scopeSelect').disabled = !groups.size; $('dateSelect').disabled = true;
-    $('scopeHint').textContent = settings.kind === 'files' ? '零散文件已作为独立批次载入，不与原目录拼接。文件名不含设备 ID，请确认它们来自同一设备；跨设备分析请导入上级目录。' : `来源：${settings.folderName}；不同设备目录分开查看，同设备当天的所有任务一起显示。`;
+    $('scopeHint').textContent = settings.kind === 'files' ? '零散文件已作为独立批次载入，不与原目录拼接。文件名不含设备 ID，请确认它们来自同一设备；跨设备请用“添加设备”选取完整设备目录。' : `来源：${settings.folderName}；“添加设备”保留已载入数据，“导入日志文件夹”替换整批数据。不同设备分开查看，同设备当天所有任务一起显示。`;
     if (!groups.size) { state.scopeKey = ''; render(); notice([...state.failures, '未找到命名包含 _dlog_ 或 _tlog_ 的日志文件。CTD、mot 等二进制 TXT 副本不会作为日志读取。']); $('loadStatus').textContent = '无日志'; return; }
     $('scopeSelect').value = groups.has(requestedScope) ? requestedScope : groups.keys().next().value;
     await loadScope();
@@ -151,11 +158,11 @@
       if (!meta) { if (!folder && !/\.csv$/i.test(entry.name)) skipped.push(`${entry.name}：不是受支持的 dlog / tlog 文件名`); continue; }
       records.push({ ...meta, size: entry.file.size, file: entry.file, scopeLabel: folder ? meta.scopeLabel : `单独选取（设备未核验） · ${meta.device}` });
     }
-    await install(records, { kind: folder ? 'folder' : 'files', folderName: settings.folderName || (folder ? '已导入文件夹' : '单独选取'), failures: skipped });
+    await install(records, { kind: folder ? 'folder' : 'files', folderName: settings.folderName || (folder ? '已导入文件夹' : '单独选取'), failures: skipped, scopeKey: settings.scopeKey, day: settings.day });
   }
 
   function receiveWorkspaceBatch(batch) {
-    state.pendingSelection = null;
+    state.pendingSelection = batch.meta?.append && state.scopeKey ? { scopeKey: state.scopeKey, day: state.day } : null;
     state.generation++;
     state.records = []; state.rows = []; state.cache.clear();
     setBusy();
@@ -165,6 +172,21 @@
       ? scanCurrent(false)
       : importFiles(batch.entries, batch.meta?.importMode !== 'files', { folderName: batch.meta?.folderName });
     Promise.resolve(loading).finally(() => { if (loadToken === state.batchLoadToken) state.loadingBatch = false; });
+  }
+
+  async function addDevice(files) {
+    const entries = sharedFileEntries(files);
+    if (!entries.length) { notice(['所选目录没有 CTD CSV 或 dlog / tlog 文件，原有数据已保留。']); return; }
+    const button = $('addLogDevice');
+    button.disabled = true;
+    try {
+      const result = await CtdDeviceImport.append(workspace, entries, { server: state.kind === 'server' });
+      // Preserve the latest chosen device after any asynchronous server-file read.
+      const selection = { scopeKey: state.scopeKey, day: state.day };
+      state.pendingSelection = selection;
+      await importFiles(result.batch.entries, true, { folderName: result.batch.meta.folderName, ...selection });
+    } catch (error) { notice([`添加设备未完成：${error.message}。原有数据已保留。`]); }
+    finally { button.disabled = false; }
   }
 
   async function scanCurrent(useQuery = false) {
@@ -180,8 +202,10 @@
 
   $('openFiles').addEventListener('click', () => $('fileInput').click());
   $('openFolder').addEventListener('click', () => $('folderInput').click());
+  $('addLogDevice').addEventListener('click', () => $('addLogDeviceInput').click());
   $('fileInput').addEventListener('change', event => { publishImport(event.target.files, 'files'); importFiles(event.target.files, false); event.target.value = ''; });
   $('folderInput').addEventListener('change', event => { publishImport(event.target.files, 'folder'); importFiles(event.target.files, true); event.target.value = ''; });
+  $('addLogDeviceInput').addEventListener('change', event => { addDevice(event.target.files); event.target.value = ''; });
   $('localButton').hidden = !localService;
   $('localButton').addEventListener('click', () => scanCurrent());
   $('scopeSelect').addEventListener('change', () => { state.day = ''; clearFilters(); loadScope(); });

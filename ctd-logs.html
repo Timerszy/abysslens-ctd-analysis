@@ -34,9 +34,11 @@
       <a class="button" href="ctd-plotter.html" target="_blank" rel="noopener">CTD 图表 ↗</a>
       <button class="button" id="localButton" type="button">扫描当前目录</button>
       <button class="button" id="openFiles" type="button">选择日志文件</button>
+      <button class="button" id="addLogDevice" type="button">添加设备</button>
       <button class="button primary" id="openFolder" type="button">导入日志文件夹</button>
       <input id="fileInput" type="file" accept=".txt,.log,.dlog,.tlog" multiple hidden>
       <input id="folderInput" type="file" webkitdirectory directory multiple hidden>
+      <input id="addLogDeviceInput" type="file" webkitdirectory directory multiple hidden>
     </div>
   </header>
   <main>
@@ -61,7 +63,7 @@
         <div class="times"><div class="field"><label for="startTime">开始时间</label><input id="startTime" type="time" step="1"></div><span>—</span><div class="field"><label for="endTime">结束时间</label><input id="endTime" type="time" step="1"></div></div>
         <button class="button" id="resetFilters" type="button">重置筛选</button>
       </div>
-      <p class="hint" id="scopeHint">可导入 6006、6127 等设备目录，或包含多个设备的上级目录。单次选取的零散文件应来自同一设备。</p>
+      <p class="hint" id="scopeHint">“添加设备”保留已载入数据；“导入日志文件夹”替换整批数据。可一次导入包含多个设备的上级目录，再切换设备查看。</p>
       <p class="hint">无时区标注的时间按北京时间读取；独立时间行与紧邻的下一内容行合并，记录按实际日期归日。日志保留原文，不按关键词自动判定故障。</p>
       <details class="firmware-reference" style="font-size:12px;margin-top:12px;color:var(--muted)">
         <summary style="cursor:pointer;color:var(--ink)">源码参考 · reset_reason 怎么读</summary>
@@ -81,6 +83,6 @@
     <details class="files"><summary id="fileListTitle">当天来源文件</summary><ul id="fileList"></ul></details>
     <p class="footer"><span id="workspaceStatus">正在准备页面间共享…</span><br>本地读取，不上传网络 · 支持 UTF-8 / GB18030 · 单文件上限 20 MiB，单个设备来源每次读取上限 80 MiB；超限会明确提示，不静默截断。</p>
   </main>
-  <script src="ctd-data.js"></script><script src="ctd-logs.js"></script><script src="ctd-workspace.js"></script><script src="ctd-log-viewer.js"></script>
+  <script src="ctd-data.js"></script><script src="ctd-logs.js"></script><script src="ctd-workspace.js"></script><script src="ctd-device-import.js"></script><script src="ctd-log-viewer.js"></script>
 </body>
 </html>

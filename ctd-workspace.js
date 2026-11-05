@@ -35,6 +35,15 @@
     });
   }
 
+  function mergeEntries(existing, incoming) {
+    const merged = new Map();
+    for (const entry of [...normalizeEntries(existing), ...normalizeEntries(incoming)]) {
+      const relativePath = entry.relativePath.replace(/\\/g, '/').replace(/^(\.\/)+/, '');
+      merged.set(relativePath, { ...entry, relativePath });
+    }
+    return Array.from(merged.values());
+  }
+
   function createClient(options = {}) {
     const protocol = options.protocol || (typeof location !== 'undefined' ? location.protocol : '');
     const clientId = options.clientId || randomId();
@@ -146,6 +155,10 @@
       return { batch, shared };
     }
 
+    function append(entries, meta = {}) {
+      return replace(mergeEntries(batch?.entries, entries), { ...(batch?.meta || {}), ...meta });
+    }
+
     function select(context) {
       if (!batch) return false;
       selection = { batchId: batch.id, revision: nextRevision(), context: { ...(context || {}) } };
@@ -163,8 +176,8 @@
       channel = null;
     }
 
-    return { replace, select, getSnapshot, isSupported: () => supported && Boolean(channel), close };
+    return { replace, append, select, getSnapshot, isSupported: () => supported && Boolean(channel), close };
   }
 
-  return { createClient };
+  return { createClient, mergeEntries };
 }));
