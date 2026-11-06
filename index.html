@@ -348,35 +348,56 @@
 
     <div class="workspace">
       <aside class="sidebar">
-        <section class="side-section">
-          <h2 class="sidebar-heading">数据源</h2>
-          <div class="dropzone" id="dropzone" role="button" tabindex="0">
-            <strong>添加 CSV 文件</strong>
-            <span>CSV / TXT</span>
-          </div>
-          <div class="file-meta" id="fileMeta">当前显示内置示例数据</div>
+        <div class="sidebar-head"><h2 class="sidebar-heading">数据导航</h2><span class="sidebar-count" id="sidebarDeviceCount"></span></div>
+        <section class="side-section source-section">
           <div class="folder-panel" id="folderPanel" hidden>
-            <div class="folder-panel-head"><strong>文件夹任务</strong><span id="folderMeta">—</span></div>
-            <div class="field"><label for="deviceSelect">分析设备 / 来源目录</label><select class="task-select" id="deviceSelect" disabled></select></div>
-            <p class="disclosure-hint">“添加设备”保留现有数据；“导入文件夹”替换整批。也可一次导入包含多个设备的上级目录。</p>
-            <select class="task-select" id="taskSelect" aria-label="选择 CTD 任务" disabled></select>
-            <button class="button subtle folder-clear" id="clearFolderButton" type="button">清空设备数据</button>
+            <div class="field"><label for="deviceSelect">设备</label><select class="task-select" id="deviceSelect" disabled></select></div>
+            <div class="field task-field">
+              <div class="task-field-head"><label for="taskSelect">任务</label><p class="task-context" id="taskContext"></p></div>
+              <select class="task-select" id="taskSelect" aria-label="选择 CTD 任务" disabled></select>
+            </div>
+          </div>
+          <div class="dataset-overview" id="datasetOverview">
+            <strong id="sidebarDatasetName">内置示例</strong><span id="sidebarDatasetMeta">120 个采样点</span>
+          </div>
+          <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="选择 CSV 文件，也可将文件拖到此处">
+            <strong>选择或拖入 CSV</strong><span>CSV / TXT</span>
           </div>
         </section>
 
-        <section class="side-section">
-          <h2 class="sidebar-heading">字段映射</h2>
-          <div class="field"><label for="timeColumn">时间列</label><select id="timeColumn"></select></div>
-          <div class="field"><label for="pressureColumn">压力 / 深度列</label><select id="pressureColumn"></select></div>
-          <div class="field"><label for="temperatureColumn">温度列</label><select id="temperatureColumn"></select></div>
-          <div class="field"><label for="salinityColumn">盐度列</label><select id="salinityColumn"></select></div>
+        <section class="side-section sidebar-settings">
+          <details class="sidebar-disclosure" id="displaySettings">
+            <summary>图表显示</summary>
+            <div class="disclosure-content">
+              <label class="toggle-row"><input id="invertDepth" type="checkbox" checked>深度向下增加</label>
+              <label class="toggle-row"><input id="showPoints" type="checkbox">显示采样点</label>
+              <label class="toggle-row"><input id="showLevel" type="checkbox" checked>显示 level 测量点</label>
+            </div>
+          </details>
         </section>
 
-        <section class="side-section">
-          <h2 class="sidebar-heading">图表选项</h2>
-          <label class="toggle-row"><input id="invertDepth" type="checkbox" checked>压力 / 深度向下增加</label>
-          <label class="toggle-row"><input id="showPoints" type="checkbox">显示采样点</label>
-          <label class="toggle-row"><input id="showLevel" type="checkbox" checked>叠加 level 测量点</label>
+        <section class="side-section sidebar-settings">
+          <details class="sidebar-disclosure" id="fieldSettings">
+            <summary>字段映射</summary>
+            <div class="disclosure-content">
+              <div class="field"><label for="timeColumn">时间列</label><select id="timeColumn"></select></div>
+              <div class="field"><label for="pressureColumn">压力 / 深度列</label><select id="pressureColumn"></select></div>
+              <div class="field"><label for="temperatureColumn">温度列</label><select id="temperatureColumn"></select></div>
+              <div class="field"><label for="salinityColumn">盐度列</label><select id="salinityColumn"></select></div>
+            </div>
+          </details>
+        </section>
+
+        <section class="side-section sidebar-settings">
+          <details class="sidebar-disclosure" id="sourceDetails">
+            <summary>数据详情<span class="source-read-status" id="sourceReadStatus" role="status" hidden></span></summary>
+            <div class="disclosure-content">
+              <p class="library-meta" id="folderMeta"></p>
+              <div class="file-meta" id="fileMeta">当前显示内置示例数据</div>
+              <p class="import-help">“添加设备”保留已有数据；“导入文件夹”替换全部数据。也可一次导入多个设备的上级目录。</p>
+              <div class="source-actions" id="sourceActions"><button class="button subtle folder-clear" id="clearFolderButton" type="button">清空设备数据</button></div>
+            </div>
+          </details>
         </section>
       </aside>
 
@@ -486,6 +507,12 @@
         exportButton: document.getElementById("exportButton"),
         dropzone: document.getElementById("dropzone"),
         fileMeta: document.getElementById("fileMeta"),
+        sidebarDeviceCount: document.getElementById('sidebarDeviceCount'),
+        datasetOverview: document.getElementById('datasetOverview'),
+        sidebarDatasetName: document.getElementById('sidebarDatasetName'),
+        sidebarDatasetMeta: document.getElementById('sidebarDatasetMeta'),
+        sourceDetails: document.getElementById('sourceDetails'),
+        sourceReadStatus: document.getElementById('sourceReadStatus'),
         folderPanel: document.getElementById("folderPanel"),
         folderMeta: document.getElementById("folderMeta"),
         taskSelect: document.getElementById("taskSelect"),
@@ -731,6 +758,9 @@
         const folder = state.folder;
         if (!folder || !folder.records.length) {
           els.folderPanel.hidden = true;
+          els.datasetOverview.hidden = false;
+          els.sidebarDeviceCount.textContent = '';
+          els.folderMeta.textContent = '';
           els.taskSelect.innerHTML = "";
           els.taskSelect.disabled = true;
           els.deviceSelect.replaceChildren();
@@ -738,6 +768,7 @@
           return;
         }
         els.folderPanel.hidden = false;
+        els.datasetOverview.hidden = true;
         const devices = new Map();
         folder.records.forEach(record => {
           const scope = taskContext(record)?.scopeKey || '';
@@ -755,6 +786,7 @@
         });
         els.deviceSelect.disabled = false; els.deviceSelect.value = activeScope;
         folder.deviceCount = devices.size;
+        els.sidebarDeviceCount.textContent = `${devices.size} 个设备`;
         els.folderMeta.textContent = `${devices.size} 个设备来源 · ${folder.taskCount} 个剖面 · CTD ${folder.records.length} / keydata ${folder.keydataCount || 0} / level ${folder.levelCount || 0} / mot ${folder.motCount || 0}`;
         els.taskSelect.innerHTML = "";
         const groups = new Map();
@@ -764,10 +796,11 @@
         });
         Array.from(groups.keys()).sort((a, b) => String(b).localeCompare(String(a))).forEach((date) => {
           const group = document.createElement("optgroup");
-          group.label = `${deviceLabel(active)} · ${formatDateCode(date)}`;
+          group.label = formatDateCode(date);
           groups.get(date).forEach((record) => {
             const option = document.createElement("option");
             option.value = record.id;
+            option.dataset.day = taskContext(record)?.day || '';
             const interval = record.interval == null ? "间隔未知" : `间隔 ${record.interval}`;
             option.textContent = `剖面 ${record.profile} · ${interval} · ${record.rowCount} 点${/副本|copy/i.test(record.name) ? ' · 副本' : ''}`;
             option.title = record.relativePath;
@@ -791,6 +824,7 @@
         if (!Array.from(els.taskSelect.options).some(option => option.value === record.id)) renderFolderTasks();
         if (els.taskSelect.value !== record.id) els.taskSelect.value = record.id;
         setDataset(record.dataset, record.name, record.encoding);
+        els.taskSelect.dispatchEvent(new Event('ctd-task-selection'));
         if (publish) publishTaskContext(record);
         if (notify) showToast(`已切换到 ${deviceLabel(record)} · ${record.date} · 剖面 ${record.profile}`);
       }
@@ -1197,11 +1231,19 @@
         els.statTemperature.textContent = formatRange(temperature, 2);
         els.statSalinity.textContent = formatRange(salinity, 3);
         const activeRecord = state.folder?.records.find((record) => record.id === state.selectedRecordId);
+        els.sidebarDatasetName.textContent = state.fileName === '内置示例数据.csv' ? '内置示例' : state.fileName;
+        els.sidebarDatasetName.title = state.fileName;
+        els.sidebarDatasetMeta.textContent = `${state.rows.length} 个采样点`;
         els.pageFileLabel.textContent = `${activeRecord ? deviceLabel(activeRecord) + ' · ' : ''}${state.fileName} · ${state.rows.length} 个采样点`;
         els.fileMeta.textContent = activeRecord
           ? `${activeRecord.relativePath} · ${state.encoding} · ${state.rawRows.length} 行`
           : `${state.fileName} · ${state.encoding} · ${state.rawRows.length} 行`;
         const failures = state.folder?.failures || [];
+        const failureKey = failures.join('\n');
+        els.sourceReadStatus.hidden = !failures.length;
+        els.sourceReadStatus.textContent = failures.length ? `${failures.length} 个文件未读取` : '';
+        if (failures.length && els.sourceDetails.dataset.failures !== failureKey) els.sourceDetails.open = true;
+        els.sourceDetails.dataset.failures = failureKey;
         els.fileMeta.title = failures.join('\n');
         if (failures.length) {
           const detail = document.createElement('details'), summary = document.createElement('summary');

@@ -34,27 +34,16 @@
   settings.addEventListener('click', () => showSettings(sidebar.hidden, true));
   wideScreen.addEventListener('change', () => { if (savedSettings !== 'open' && savedSettings !== 'closed') showSettings(wideScreen.matches); });
 
-  const sourceSection = sidebar.querySelector('.side-section');
+  const sourceActions = document.getElementById('sourceActions');
   const demo = document.getElementById('demoButton');
-  if (demo && sourceSection) {
-    const sourceActions = document.createElement('div'); sourceActions.className = 'source-actions';
-    demo.textContent = '载入示例数据'; sourceActions.append(demo); sourceSection.append(sourceActions);
-  }
-  const mappingSection = document.getElementById('timeColumn')?.closest('.side-section');
-  if (mappingSection) {
-    const heading = mappingSection.querySelector('h2');
-    const details = document.createElement('details'); details.className = 'sidebar-disclosure';
-    const summary = document.createElement('summary'); summary.textContent = '字段映射';
-    const hint = document.createElement('p'); hint.className = 'disclosure-hint'; hint.textContent = '已自动识别，需要时可手动调整';
-    heading?.remove();
-    details.append(summary, hint, ...Array.from(mappingSection.children)); mappingSection.append(details);
+  if (demo && sourceActions) {
+    demo.textContent = '载入示例数据'; sourceActions.append(demo);
   }
 
   const taskSelect = document.getElementById('taskSelect');
   const folderPanel = document.getElementById('folderPanel');
   if (taskSelect && folderPanel) {
-    const context = document.createElement('p'); context.className = 'task-context'; context.id = 'taskContext';
-    taskSelect.before(context);
+    const context = document.getElementById('taskContext');
     const navigation = document.createElement('div'); navigation.className = 'task-navigation'; navigation.setAttribute('aria-label', '切换文件夹任务');
     const previous = document.createElement('button'), next = document.createElement('button'), position = document.createElement('output');
     previous.type = next.type = 'button'; previous.className = next.className = 'button';
@@ -67,7 +56,7 @@
       next.disabled = taskSelect.disabled || index < 0 || index >= options.length - 1;
       position.textContent = `${index + 1} / ${options.length}`;
       const selected = options[index];
-      context.textContent = selected?.parentElement?.tagName === 'OPTGROUP' ? selected.parentElement.label : '';
+      context.textContent = selected?.dataset.day || '';
       context.hidden = !context.textContent;
     }
     function stepTask(direction) {
@@ -79,6 +68,7 @@
     }
     previous.addEventListener('click', () => stepTask(-1)); next.addEventListener('click', () => stepTask(1));
     taskSelect.addEventListener('change', updateNavigation);
+    taskSelect.addEventListener('ctd-task-selection', updateNavigation);
     new MutationObserver(updateNavigation).observe(taskSelect, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
     updateNavigation();
   }
