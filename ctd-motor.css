@@ -14,27 +14,15 @@
 .motor-reading strong { font-weight:600; color:var(--ink); font-size:15px; font-variant-numeric:tabular-nums; }
 .motor-reading small { font-size:11px; line-height:1.6; overflow-wrap:anywhere; }
 .motor-readout .motor-readout-note { margin-top:12px; border-top:1px solid var(--line); padding-top:9px; }
-.motor-events > summary, .motor-source-reference > summary { min-height:44px; display:list-item; align-content:center; cursor:pointer; font-size:12px; color:var(--ink); font-weight:600; line-height:1.7; }
-.motor-event-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:190px; overflow:auto; padding:2px 2px 6px; }
-.motor-event { display:grid; text-align:left; gap:4px; padding:11px 12px; min-height:76px; border:1px solid var(--line); border-radius:7px; color:var(--ink); background:#fff; cursor:pointer; font-family:inherit; }
-.motor-event:hover { background:#f1f7f9; border-color:#8aafb9; }
-.motor-event[aria-pressed="true"] { border-color:var(--teal); background:var(--teal-soft); }
-.motor-event-time { color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; }
-.motor-event strong { font-size:13px; font-weight:600; }
-.motor-event small { color:var(--muted); font-size:11px; line-height:1.6; }
-.motor-event[data-kind="position-jump"] strong { color:#984a20; }
-.motor-source-reference { margin-top:10px; border-top:1px solid var(--line); padding-top:4px; }
-.motor-source-reference p { margin:8px 0; color:var(--muted); line-height:1.8; font-size:12px; }
-.motor-event:focus-visible, .motor-phase-controls button:focus-visible, .motor-events summary:focus-visible, .motor-source-reference summary:focus-visible { outline:3px solid #167cbe; outline-offset:2px; }
+.motor-phase-controls button:focus-visible { outline:3px solid #167cbe; outline-offset:2px; }
 .chart-time-cursor { position:absolute; z-index:1; width:0; border-left:1px dashed #174a60; pointer-events:none; }
 .chart-time-cursor::before { content:''; position:absolute; top:0; left:-3px; width:5px; height:5px; border-radius:50%; background:#174a60; }
 .chart-time-cursor[hidden] { display:none; }
 @media(max-width:760px) {
-  .motor-event-list { grid-template-columns:1fr; max-height:180px; }
   .motor-readout-values { grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
   .motor-readout { position:static; padding:12px; height:190px; }
   .motor-reading { font-size:11px; }
   .motor-reading strong { font-size:13px; }
-  .motor-reading small, .motor-event-time, .motor-event small { font-size:12px; }
+  .motor-reading small { font-size:12px; }
   .motor-focus-toolbar { gap:6px; }
 }

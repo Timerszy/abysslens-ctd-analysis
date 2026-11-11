@@ -67,15 +67,6 @@
     const phaseAt = time => bands.find(band => time >= band.min && time < band.max)?.label || '阶段未确认';
     const draw = () => options.render();
 
-    function focus(event) {
-      const halfWindow = Math.max(60000, Math.min(300000, (event.time - (event.previousTime || event.time)) + 30000));
-      interactions.focusTime(event.time, halfWindow);
-      interactions.inspectTime(event.time);
-      elements.panel.querySelectorAll('.motor-event').forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.time) === event.time)));
-      const canvas = document.querySelector('#chartsGrid canvas');
-      canvas?.scrollIntoView({ block: 'center', behavior: 'auto' });
-    }
-
     function setData(next) {
       data = next;
       inspection = mot.inspect(data.mot?.rows || []);
@@ -142,32 +133,7 @@
       label.append(checkbox, document.createTextNode('显示源码位置参考 0 / 94'));
       toolbar.append(group, label); container.append(toolbar);
       readout = node('div', 'motor-readout'); readout.id = 'motorReadout'; readout.setAttribute('aria-label', '电机与 CTD 同时刻对照');
-      readout.append(node('p', '', '移到任一图上联动读数，或点击下方目标变化定位。各来源保留自己的实测时间。'));
-
-      const eventDetails = node('details', 'motor-events'); eventDetails.open = true;
-      const summary = node('summary', '', `目标变化与位置跳变 · ${inspection.events.length} 个观测事件`);
-      eventDetails.append(summary);
-      if (!inspection.events.length) eventDetails.append(node('p', 'source-note', '未识别到可可靠连接的变化事件；不代表电机没有动作。长间隔和无效时间前后不推算动作。'));
-      else {
-        const list = node('div', 'motor-event-list');
-        inspection.events.forEach(event => {
-          const button = node('button', 'motor-event'); button.type = 'button'; button.dataset.time = String(event.time); button.setAttribute('aria-pressed', 'false');
-          const jump = event.kind === 'position-jump'; button.dataset.kind = event.kind;
-          button.append(node('span', 'motor-event-time', date(event.time).slice(5)), node('strong', '', jump ? '位置大幅跳到源码参考端点' : `目标 ${number(event.from, 3)} → ${number(event.to, 3)}`));
-          button.append(node('small', '', jump ? '需核对重置 / 限位，不计正常行程' : `${relation[event.requestedDirection]} · ${phaseAt(event.time)}`));
-          button.title = `变化发生在 ${date(event.previousTime)} 至 ${date(event.time)} 之间；点击查看附近图段。原始文件第 ${event.index + 2} 行。`;
-          button.addEventListener('click', () => focus(event)); list.append(button);
-        }); eventDetails.append(list);
-      }
-      container.append(eventDetails);
-
-      const reference = node('details', 'motor-source-reference');
-      reference.append(node('summary', '', '方向和位置怎么理解 · GD470 源码参考'));
-      reference.append(node('p', '', '位置增加：下潜调节方向；位置减少：上浮调节方向。目标相对当前位置表示请求关系，位置变化表示相邻记录的变化；都不等于已确认通电。浮标实际升沉看 CTD，不由电机方向推断。'));
-      reference.append(node('p', '', 'GD470 v0408-2 内部位置为估计霍尔圈数，MOT 截断为整数并按变化存储。历史固件、标定未核实时保留原始值。0 / 94 只是该源码位置参考，不是本批数据已确认的硬限位。'));
-      reference.append(node('p', '', '漂流调节为越过目标带宽后固定约 1 圈动作；动作完成和睡醒后存在约 300 s 等待，清醒且带内检查时持续检查。当前图不从整数位置相等推断停机时刻，也不给每次目标变化虚构 300 s 动作窗。'));
-      reference.append(node('p', '', `长间隔仅断开绘图，不直接认定丢样或停机；位置偏差不直接判堵转，位置变化不换算电耗。${stats.suspectedResetCount} 处参考端点大跳变为启发式提示，尚需日志核对。阶段色带只显示起止时间明确的 keydata 区间。`));
-      container.append(reference);
+      readout.append(node('p', '', '移到任一图上联动读数。各来源保留自己的实测时间。'));
       renderDetails();
     }
 
