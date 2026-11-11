@@ -323,6 +323,7 @@
   <link rel="stylesheet" href="ctd-log-panel.css">
   <link rel="stylesheet" href="abysslens-ui.css">
   <link rel="stylesheet" href="ctd-chart-tools.css">
+  <link rel="stylesheet" href="ctd-motor.css">
   <link rel="stylesheet" href="ctd-replay.css">
 </head>
 <body class="analysis-page">
@@ -463,6 +464,7 @@
   <script src="ctd-velocity.js"></script>
   <script src="ctd-phases.js"></script>
   <script src="ctd-mot.js"></script>
+  <script src="ctd-motor-view.js"></script>
   <script src="ctd-diagnostics.js"></script>
   <script src="ctd-workspace.js"></script>
   <script src="ctd-device-import.js"></script>
@@ -558,7 +560,10 @@
         pressure: "#4779a8",
         relation: "#d8a336"
       };
-      const chartInteractions = CtdChartInteractions.create({ formatTime: formatDate });
+      const chartInteractions = CtdChartInteractions.create({ formatTime: formatDate, onTimeInspect: time => motorViewer.inspectAt(time) });
+      const motorViewer = CtdMotorView.create({ panel: els.motPanel, content: document.getElementById('motContent'), details: document.getElementById('motDetails'), chartsGrid: els.chartsGrid }, {
+        formatTime: formatDate, formatNumber, interactions: chartInteractions, chart: createChartCard, render: renderCharts
+      });
       let chartTimeDomain = null;
       let replayDataSource = null;
       const replayViewer = CtdReplayViewer.create(els.chartsGrid, {
@@ -951,6 +956,9 @@
         });
         canvas.setAttribute('aria-label', `${config.title}；${legend.textContent}`);
         card.append(header, canvasWrap, legend);
+        if (!config.points.length && !config.overlays?.length && config.emptyText) {
+          const empty = document.createElement('p'); empty.className = 'chart-method'; empty.textContent = config.emptyText; card.append(empty);
+        }
         if (config.method) {
           const method = document.createElement('p'); method.className = 'chart-method'; method.textContent = config.method; card.append(method);
         }
@@ -973,7 +981,8 @@
         const plot = { left: margin.left, top: margin.top, width: width - margin.left - margin.right, height: height - margin.top - margin.bottom };
         const points = config.points;
         const overlays = config.overlays || [];
-        const allPoints = [...points, ...overlays];
+        const markers = config.eventMarkers || [];
+        const allPoints = [...markers, ...points, ...overlays];
         if (!allPoints.length) {
           ctx.fillStyle = "#8a9697";
           ctx.font = "12px Segoe UI, Microsoft YaHei, sans-serif";
@@ -983,6 +992,7 @@
         }
         const xValues = allPoints.map((point) => point.x);
         const yValues = allPoints.map((point) => point.y);
+        (config.horizontalLines || []).forEach(line => yValues.push(line.value));
         if (config.zeroLine) xValues.push(0);
         let xMin = Math.min(...xValues); let xMax = Math.max(...xValues);
         let yMin = Math.min(...yValues); let yMax = Math.max(...yValues);
@@ -1022,6 +1032,20 @@
         ctx.fillText(config.xLabel, plot.left + plot.width / 2, height - 6);
         ctx.save(); ctx.translate(13, plot.top + plot.height / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(config.yLabel, 0, 0); ctx.restore();
         ctx.save(); ctx.beginPath(); ctx.rect(plot.left, plot.top, plot.width, plot.height); ctx.clip();
+        (config.phaseBands || []).forEach(band => {
+          const left = Math.max(plot.left, mapX(band.min)), right = Math.min(plot.left + plot.width, mapX(band.max));
+          if (right <= left) return;
+          ctx.save(); ctx.globalAlpha = .055; ctx.fillStyle = band.color; ctx.fillRect(left, plot.top, right - left, plot.height); ctx.globalAlpha = 1;
+          ctx.fillStyle = band.color; ctx.fillRect(left, plot.top, right - left, 3);
+          ctx.font = '11px Segoe UI, Microsoft YaHei, sans-serif'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+          if (right - left > ctx.measureText(band.label).width + 12) ctx.fillText(band.label, left + 6, plot.top + 8);
+          ctx.restore();
+        });
+        (config.horizontalLines || []).forEach(line => {
+          ctx.save(); ctx.strokeStyle = '#687586'; ctx.setLineDash([3, 5]); ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(plot.left, mapY(line.value)); ctx.lineTo(plot.left + plot.width, mapY(line.value)); ctx.stroke();
+          ctx.fillStyle = '#52677b'; ctx.textAlign = 'right'; ctx.font = '11px Segoe UI, Microsoft YaHei, sans-serif'; ctx.fillText(line.label, plot.left + plot.width - 5, mapY(line.value) - 5); ctx.restore();
+        });
         if (config.zeroLine) {
           ctx.save(); ctx.strokeStyle = '#9da9a7'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(mapX(0), plot.top); ctx.lineTo(mapX(0), plot.top + plot.height); ctx.stroke(); ctx.restore();
         }
@@ -1035,7 +1059,7 @@
           series.points.forEach((point, index) => {
             const x = mapX(point.x), y = mapY(point.y);
             const previous = series.points[index - 1];
-            const gap = previous && ((config.breakGaps && (point.index !== previous.index + 1 || point.source !== previous.source || point.gapBefore)) || (config.xType === 'time' && (point.x <= previous.x || (config.maxGapMs && point.x - previous.x > config.maxGapMs))));
+            const gap = previous && ((config.breakGaps && (point.index !== previous.index + 1 || point.source !== previous.source || point.gapBefore || point.breakBefore)) || (config.xType === 'time' && (point.x <= previous.x || (config.maxGapMs && point.x - previous.x > config.maxGapMs))));
             if (!started || series.connect === false || gap) { ctx.moveTo(x, y); started = true; }
             else { if (series.step) ctx.lineTo(x, mapY(previous.y)); ctx.lineTo(x, y); }
           });
@@ -1050,6 +1074,14 @@
           const x = mapX(point.x), y = mapY(point.y);
           ctx.fillStyle = '#8055aa'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x + 5, y); ctx.lineTo(x, y + 5); ctx.lineTo(x - 5, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+        });
+        markers.forEach(point => {
+          const x = mapX(point.x), y = mapY(point.y);
+          ctx.save(); ctx.strokeStyle = point.color; ctx.fillStyle = '#ffffff'; ctx.lineWidth = 2;
+          ctx.beginPath();
+          if (point.shape === 'cross') { ctx.moveTo(x - 5, y - 5); ctx.lineTo(x + 5, y + 5); ctx.moveTo(x + 5, y - 5); ctx.lineTo(x - 5, y + 5); ctx.stroke(); }
+          else { ctx.moveTo(x, y - 6); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 6); ctx.lineTo(x - 6, y); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+          ctx.restore();
         });
         ctx.restore();
         const nearestPoint = (event) => {
@@ -1075,6 +1107,10 @@
           if (point.label) lines.push(point.label);
           if (point.phaseLabel) lines.push(`任务阶段：${point.phaseLabel}`);
           if (config.motor && ('position' in point || 'target' in point)) lines.push(`当前位置 ${formatNumber(point.position, 3)} · 目标 ${formatNumber(point.target, 3)}\n偏差（当前−目标）${formatNumber(point.error, 3)}`);
+          if (point.motorRelation) lines.push(point.motorRelation);
+          if (point.motorMovement) lines.push(`${point.motorMovement}${Number.isFinite(point.positionDelta) ? ` · Δ位置 ${formatNumber(point.positionDelta, 3)}` : ''}`);
+          if (point.kind) lines.push(`变化区间：${formatDate(point.previousTime)} — ${formatDate(point.time)}\nCSV 第 ${point.index + 2} 行；非确切动作时刻`);
+          if (Number.isFinite(point.intervalStart)) lines.push(`平均速度区间：${formatDate(point.intervalStart)} — ${formatDate(point.time)}\n区间长度 ${formatNumber(point.deltaTime, 1)} s`);
           if (config.zeroLine) lines.push(`相邻采样间隔 ${formatNumber(point.deltaTime, 3)} s`);
           tooltip.textContent = lines.join('\n');
           const maxLeft = canvas.clientWidth - tooltip.offsetWidth - 8;
@@ -1155,71 +1191,19 @@
 
       function renderMotPanel(records) {
         const selected = records[state.motIndex] || records[0];
-        const container = document.getElementById('motContent'), details = document.getElementById('motDetails');
-        container.replaceChildren(); details.replaceChildren();
         document.getElementById('motSource').textContent = selected?.relativePath || selected?.name || '';
-        document.getElementById('motStatus').textContent = selected ? `${state.mot.stats.rowCount} 条记录` : '缺少数据';
+        document.getElementById('motStatus').textContent = selected ? `${state.mot.stats.rowCount} 条记录 · 原始值 / 源码参考` : '缺少数据';
         els.motSelect.replaceChildren(); els.motSelect.hidden = records.length < 2;
-        records.forEach((record, i) => { const option = document.createElement('option'); option.value = String(i); option.textContent = record.relativePath || record.name; els.motSelect.append(option); });
+        records.forEach((record, index) => { const option = document.createElement('option'); option.value = String(index); option.textContent = record.relativePath || record.name; els.motSelect.append(option); });
         els.motSelect.value = String(state.motIndex);
-        const note = document.createElement('p'); note.className = 'source-note';
-        if (!selected || !state.mot.rows.length) {
-          note.textContent = '未找到同日期、同剖面的 mot 电机记录。请导入含 mot CSV 的完整目录；不按 CTD 运动方向推断电机动作。';
-          container.append(note); return;
-        }
-        const stats = state.mot.stats, last = stats.lastUsableRow;
-        const entries = [
-          ['记录数 / 有效时间', `${stats.rowCount} / ${stats.timedCount}`],
-          ['末条有值记录：当前 / 目标', `${formatNumber(last?.position, 3)} / ${formatNumber(last?.target, 3)}`],
-          ['最大绝对位置偏差', formatNumber(stats.maxAbsError, 3)],
-          ['记录中的目标变更', `${stats.observedTargetChanges} 次`]
-        ];
-        const grid = document.createElement('dl'); grid.className = 'facts-grid';
-        entries.forEach(([title, value]) => { const box = document.createElement('div'); box.className = 'fact'; const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = title; dd.textContent = value; box.append(dt, dd); grid.append(box); });
-        const gap = state.mot.sourceStats[0];
-        note.textContent = `位置单位未提供，保留原始值；偏差 = 当前位置 − 目标位置，不直接判定故障。末条有值记录：${formatDate(last?.time) || '时间未记录'}（北京）。最长相邻记录间隔 ${formatNumber(stats.maxGapSeconds, 1)} s；超过 ${formatNumber(gap?.gapThresholdSeconds, 1)} s 的 ${stats.gapCount} 处间隔断线（规则：60 s 与 5 倍记录间隔中位数取较大值，仅用于绘图）。源码参考（GD470 v0408-2）：当前位置或目标位置变化时才写入 MOT；长间隔可能只是期间无数值变化，不作为丢样或故障证据。历史数据请核对固件版本。`;
-        container.append(grid, note);
-        const table = document.createElement('table'), head = document.createElement('thead'), tr = document.createElement('tr'), body = document.createElement('tbody');
-        ['行号', '时间（北京）', '当前位置', '目标位置', '偏差（当前−目标）', '与上一条的长间隔 (s)'].forEach(label => { const th = document.createElement('th'); th.textContent = label; tr.append(th); });
-        head.append(tr);
-        state.mot.rows.forEach(point => {
-          const row = document.createElement('tr');
-          [point.index + 1, formatDate(point.time) || point.timeRaw || '未记录', formatNumber(point.position, 3), formatNumber(point.target, 3), formatNumber(point.error, 3), point.gapBefore ? formatNumber(point.gapSeconds, 1) : '—'].forEach(value => { const td = document.createElement('td'); td.textContent = String(value); row.append(td); });
-          body.append(row);
-        });
-        const wrap = document.createElement('div'); wrap.className = 'table-scroll'; wrap.tabIndex = 0;
-        table.append(head, body); wrap.append(table); details.append(wrap);
+        motorViewer.setData({ selected, mot: state.mot, rows: state.rows, phases: state.phases, velocity: state.velocity, depthUnit: state.depthUnit, singleMot: state.singleMot, invertDepth: els.invertDepth.checked });
       }
 
       function renderMotCharts() {
-        if (!state.mot?.rows.length) {
-          const empty = document.createElement('div'); empty.className = 'empty-state';
-          empty.textContent = '当前剖面没有 mot 数据，可切换剖面或导入完整文件夹。'; els.chartsGrid.append(empty); return;
-        }
-        const motRows = state.mot.rows;
-        const timeValues = [...motRows, ...state.rows].map(row => row.time).filter(Number.isFinite);
-        if (!timeValues.length) {
-          const empty = document.createElement('div'); empty.className = 'empty-state'; empty.textContent = '没有有效时间，无法按时间绘图；原始记录仍可在下方查看。'; els.chartsGrid.append(empty); return;
-        }
-        const min = Math.min(...timeValues), max = Math.max(...timeValues), pad = Math.max(1000, (max - min) * 0.03);
-        const xDomain = chartTimeDomain || { min: min - pad, max: max + pad };
-        const common = { xDomain, xType: 'time', yType: 'number', xLabel: '采样时间（北京）', xUnit: '', wide: true, motor: true, forcePoints: true, breakGaps: true, invertY: false, legend: '' };
-        const motPoints = (key, label) => motRows.filter(row => Number.isFinite(row.time) && Number.isFinite(row[key])).map(row => ({ ...row, x: row.time, y: row[key], label }));
-        const current = motPoints('position', '当前位置'), target = motPoints('target', '目标位置'), error = motPoints('error', '位置偏差');
-        createChartCard({ ...common, title: '浮力电机位置', subtitle: '当前位置与目标位置 · 原始位置值', points: [...current, ...target], yLabel: '位置（原始值）', yUnit: '原始值', color: '#267ca3', legend: `${motRows.length} 条 mot 记录 · `, series: [
-          { id: 'mot-position', label: '当前位置', points: current, color: '#267ca3', dash: [] },
-          { id: 'mot-target', label: '目标位置', points: target, color: '#c26919', dash: [7, 4], step: true }
-        ], method: '四张图共用同一时间范围，可上下对照；各自保留原始记录时间，不插值合并。目标阶梯线仅连接已记录数值，不表示命令精确发生时刻；长间隔处断线。源码参考（GD470 v0408-2）：MOT 按位置或目标变化记录，长间隔本身不代表丢样；历史固件需核验。' });
-        createChartCard({ ...common, title: '电机位置偏差', subtitle: '当前位置 − 目标位置 · 零线表示该采样点位置相等', points: error, yLabel: '偏差（原始值）', yUnit: '原始值', color: '#8055aa', zeroY: true, legend: `${error.length} 个有效偏差点`, stat: `最大绝对值 ${formatNumber(state.mot.stats.maxAbsError, 3)}` });
-        const ctdRows = state.singleMot ? [] : state.rows;
-        const ctdDepth = ctdRows.filter(row => Number.isFinite(row.time) && Number.isFinite(row.depth)).map(row => ({ ...row, source: 'CTD', x: row.time, y: row.depth }));
-        const ctdStep = ctdRows.slice(1).map((row, i) => Number.isFinite(row.time) && Number.isFinite(ctdRows[i].time) ? row.time - ctdRows[i].time : null).filter(delta => Number.isFinite(delta) && delta > 0).sort((a, b) => a - b);
-        const maxGapMs = Math.max(60000, ctdStep.length ? 5 * ctdStep[Math.floor(ctdStep.length / 2)] : 60000);
-        const depthNote = state.depthUnit === 'dbar' ? `压力换算深度；纬度 ${formatNumber(state.velocity.latitude, 4)}°${state.velocity.assumedLatitude ? '（假设值）' : '（keydata）'}` : '按已识别的米深度绘制';
-        createChartCard({ ...common, title: 'CTD 深度对照', subtitle: state.singleMot ? '单独导入 mot，未关联 CTD' : depthNote, points: ctdDepth, maxGapMs, yLabel: '深度 (m)', yUnit: 'm', color: '#1b8978', invertY: els.invertDepth.checked, legend: `CTD ${ctdDepth.length} 点`, emptyText: '没有配套 CTD 米深度数据', method: `沿用同一时间轴；超过 ${formatNumber(maxGapMs / 1000, 1)} s 的 CTD 记录间隔断线。` });
-        const velocities = state.singleMot ? [] : state.phases.points.map(row => ({ ...row, x: row.time, y: row.velocity, source: 'CTD', phaseLabel: phaseStyles.find(style => style.id === row.phase).label }));
-        const series = phaseStyles.map(style => ({ ...style, points: velocities.filter(row => row.phase === style.id) })).filter(item => item.points.length);
-        createChartCard({ ...common, title: 'CTD 垂向速度对照', subtitle: '正值向深处、负值向浅处 · 颜色和线型表示任务阶段', points: velocities, series, maxGapMs, zeroY: true, yLabel: '垂向速度 (m/s)', yUnit: 'm/s', color: '#697780', legend: `${velocities.length} 个有效速度点 · `, emptyText: '没有配套 CTD 速度数据', method: `${state.phases.note} 速度为相邻采样间隔内的平均值，不等于电机转速；与 mot 对照仅表示时间上的对应。` });
+        if (motorViewer.renderCharts(chartTimeDomain, els.invertDepth.checked)) return;
+        const empty = document.createElement('div'); empty.className = 'empty-state';
+        empty.textContent = state.mot?.rows.length ? '没有有效时间，无法按时间绘图；原始记录仍可在下方查看。' : '当前任务没有 MOT 数据，可切换任务或导入完整文件夹。';
+        els.chartsGrid.append(empty);
       }
 
       function updateSummary() {
@@ -1277,7 +1261,6 @@
         const motRecords = state.singleMot ? [state.singleMot] : active?.mot || [];
         const motRecord = motRecords[state.motIndex] || motRecords[0];
         state.mot = CtdMot.analyze(motRecord ? [motRecord] : []);
-        renderMotPanel(motRecords);
         els.keydataSelect.replaceChildren();
         els.keydataSelect.hidden = keydata.length < 2;
         keydata.forEach((record, index) => {
@@ -1293,6 +1276,7 @@
         state.velocity = CtdVelocity.compute(state.rows, options);
         state.rows = state.velocity.rows;
         state.phases = CtdPhases.annotate(state.velocity.rows, fields);
+        renderMotPanel(motRecords);
         const results = level.map(record => CtdVelocity.compute(CtdData.levelRows([record]).sort((a, b) => a.index - b.index), { ...options, depthUnit: 'dbar' }));
         state.levelRows = results.flatMap(result => result.rows).sort((a, b) => (a.time ?? Infinity) - (b.time ?? Infinity));
         CtdDiagnostics.renderLevel(level, state.levelRows);
@@ -1313,7 +1297,7 @@
         els.pageTitle.textContent = state.exportTitle;
         els.pageSubtitle.textContent = state.mode === 'replay' ? '根据 CTD 深度、垂向速度与任务时间回放浮标升沉状态' : state.mode === 'mot' ? '按时间对照电机位置、目标和 CTD 深度 / 垂向速度' : state.mode === 'velocity' ? '根据 CTD 深度变化和实际采样时间差估算垂向运动速度' : state.mode === "profile" ? "温度、盐度与压力数据的快速浏览" : "沿采样时间检查传感器变化和下潜过程";
         els.motPanel.hidden = state.mode !== 'mot';
-        els.statRows.closest('.summary-grid').hidden = state.mode === 'replay';
+        els.statRows.closest('.summary-grid').hidden = state.mode === 'replay' || state.mode === 'mot';
         document.getElementById('motDetailsPanel').hidden = state.mode !== 'mot' || !state.mot.rows.length;
         document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.mode === state.mode));
         updateSummary(); renderCharts(); renderTable();
@@ -1460,9 +1444,9 @@
         const velocityCaption = '设备垂向速度 v = Δz/Δt；正值向深处、负值向浅处；颜色与线型表示 keydata 任务阶段';
         const conversionCaption = state.depthUnit === 'dbar' ? `压力按 UNESCO 1983 换算为米；纬度 ${formatNumber(state.velocity.latitude, 4)}°${state.velocity.assumedLatitude ? '（缺少有效定位，使用假设值）' : '（keydata）'}；速度使用相邻点差分，未平滑。` : 'CTD 计算使用米深度；速度使用相邻点差分，未平滑。未知深度单位不计算速度。';
         if (state.mode === 'mot') {
-          ctx.fillText('电机位置保留原始值（单位未提供）；偏差 = 当前位置 − 目标位置，不据此直接判定故障。', 42, 67);
+          ctx.fillText('GD470 源码：位置增大为下潜调节方向，减小为上浮调节方向；MOT 是整数位置记录，不是通电状态。', 42, 67);
           ctx.fillText(`mot 来源：${document.getElementById('motSource').textContent}`, 42, 90, width - 84);
-          ctx.fillText(`同一时间轴对照，未插值合并；mot 间隔超过 ${formatNumber(state.mot.sourceStats[0]?.gapThresholdSeconds, 1)} s 断线，共 ${state.mot.stats.gapCount} 处；目标阶梯线仅示采样记录。`, 42, 113);
+          ctx.fillText('位置保留原始值；◆ 为首次记录目标变化，× 为参考端点大跳变待核对；0 / 94 参考线不代表已确认触限。', 42, 113);
           ctx.fillText(`${conversionCaption} 源码参考：MOT 按变化记录，长间隔不等同丢样。`, 42, 136, width - 84);
           ctx.fillText(state.phases.note, 42, 159, width - 84);
         } else {

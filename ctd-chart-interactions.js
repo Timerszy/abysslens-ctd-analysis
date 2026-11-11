@@ -8,10 +8,98 @@
     const interactionModes = new Map();
     let timeRange = null;
     let frame = 0;
+    let cursorFrame = 0;
+    let inspectedTime = null;
+    let pendingInspection = false;
     const copy = range => ({ min: range.min, max: range.max });
     const span = range => range.max - range.min;
     const same = (a, b) => Math.abs(a.min - b.min) <= span(b) * 1e-8 && Math.abs(a.max - b.max) <= span(b) * 1e-8;
     const key = config => config.title;
+    const validRange = range => !!range && Number.isFinite(range.min) && Number.isFinite(range.max) && range.max > range.min && Number.isFinite(span(range));
+    const linked = instance => instance.context.config.linkedCursor === true && instance.context.config.xType === 'time';
+
+    function timeBounds() {
+      let bounds = null;
+      instances.forEach(instance => {
+        const { config, full } = instance.context;
+        if (config.xType !== 'time' || !validRange(full.x)) return;
+        if (!bounds) bounds = copy(full.x);
+        else { bounds.min = Math.min(bounds.min, full.x.min); bounds.max = Math.max(bounds.max, full.x.max); }
+      });
+      return bounds;
+    }
+
+    function updateCursor(instance) {
+      if (!linked(instance)) { instance.cursor?.remove(); instance.cursor = null; return; }
+      if (!instance.cursor) {
+        instance.cursor = document.createElement('div');
+        instance.cursor.className = 'chart-time-cursor';
+        instance.cursor.setAttribute('aria-hidden', 'true');
+        instance.cursor.style.pointerEvents = 'none';
+        instance.canvas.parentElement.append(instance.cursor);
+      }
+      const { view, plot } = instance.context;
+      const visible = Number.isFinite(inspectedTime) && validRange(view.x) && plot.width > 0 && plot.height > 0
+        && inspectedTime >= view.x.min && inspectedTime <= view.x.max;
+      instance.cursor.hidden = !visible;
+      if (!visible) return;
+      Object.assign(instance.cursor.style, {
+        left: `${instance.canvas.offsetLeft + plot.left + (inspectedTime - view.x.min) / span(view.x) * plot.width}px`,
+        top: `${instance.canvas.offsetTop + plot.top}px`, height: `${plot.height}px`
+      });
+      instance.cursor.dataset.time = String(inspectedTime);
+    }
+
+    function scheduleCursor(time, notify = true) {
+      inspectedTime = Number.isFinite(time) ? time : null;
+      pendingInspection = notify && inspectedTime !== null;
+      if (cursorFrame) return;
+      cursorFrame = requestAnimationFrame(() => {
+        cursorFrame = 0;
+        instances.forEach(updateCursor);
+        const shouldNotify = pendingInspection;
+        pendingInspection = false;
+        if (shouldNotify && inspectedTime !== null && typeof options.onTimeInspect === 'function') options.onTimeInspect(inspectedTime);
+      });
+    }
+
+    function inspectTime(time) {
+      const bounds = timeBounds();
+      if (!Number.isFinite(time) || !bounds) return null;
+      const next = Math.max(bounds.min, Math.min(bounds.max, time));
+      scheduleCursor(next);
+      return next;
+    }
+
+    function setTimeRange(range) {
+      const bounds = timeBounds();
+      if (!bounds || (range !== null && !validRange(range))) return null;
+      timeRange = range === null ? null : V.constrainRange(range, bounds);
+      instances.forEach(instance => {
+        const { config, full, view } = instance.context;
+        if (config.xType !== 'time') return;
+        ranges.set(key(config), { x: V.constrainRange(timeRange || full.x, full.x), y: copy(view.y), time: true });
+      });
+      repaint();
+      return copy(timeRange || bounds);
+    }
+
+    function focusTime(time, halfWindowMs = 60000) {
+      const bounds = timeBounds();
+      if (!Number.isFinite(time) || !bounds || !Number.isFinite(halfWindowMs) || halfWindowMs <= 0) return null;
+      const next = Math.max(bounds.min, Math.min(bounds.max, time));
+      const halfWindow = Math.min(halfWindowMs, span(bounds));
+      const range = setTimeRange({ min: next - halfWindow, max: next + halfWindow });
+      inspectTime(next);
+      return range;
+    }
+
+    function hoverTime(instance, event) {
+      if (!linked(instance)) return;
+      const point = localPoint(instance, event), { plot, view } = instance.context;
+      if (!point.inside || !validRange(view.x) || plot.width <= 0) { scheduleCursor(null, false); return; }
+      scheduleCursor(view.x.min + (point.x - plot.left) / plot.width * span(view.x));
+    }
 
     function getView(config, full) {
       const saved = ranges.get(key(config));
@@ -48,12 +136,22 @@
 
     function beginRender() {
       cancelAnimationFrame(frame); frame = 0;
-      instances.forEach(cancelDrag);
+      cancelAnimationFrame(cursorFrame); cursorFrame = 0;
+      pendingInspection = false;
+      instances.forEach(instance => {
+        cancelDrag(instance);
+        instance.cursor?.remove();
+        instance.selection.remove(); instance.tools.remove(); instance.status.remove();
+        instance.canvas.removeEventListener('wheel', instance.onWheel);
+        for (const [name, handler] of Object.entries(instance.handlers)) {
+          if (instance.canvas[name] === handler) instance.canvas[name] = null;
+        }
+      });
       instances.clear();
     }
 
     function reset() {
-      beginRender(); ranges.clear(); interactionModes.clear(); timeRange = null;
+      beginRender(); ranges.clear(); interactionModes.clear(); timeRange = null; inspectedTime = null;
     }
 
     function resetView(instance) {
@@ -123,7 +221,7 @@
     function attach(context) {
       const { canvas } = context;
       let instance = instances.get(canvas);
-      if (instance) { instance.context = context; updateStatus(instance); return; }
+      if (instance) { instance.context = context; updateStatus(instance); updateCursor(instance); return; }
       const tools = document.createElement('div'); tools.className = 'chart-tools'; tools.setAttribute('aria-label', `${context.config.title}图表操作`);
       const modes = document.createElement('div'); modes.className = 'chart-tool-modes'; modes.setAttribute('role', 'group'); modes.setAttribute('aria-label', '图表操作方式');
       const actions = document.createElement('div'); actions.className = 'chart-tool-actions';
@@ -157,6 +255,7 @@
         if (event.button !== 0 || instance.drag) return;
         const point = localPoint(instance, event);
         if (!point.inside || instance.mode === 'inspect') { instance.context.showTooltip(event); return; }
+        if (linked(instance)) scheduleCursor(null, false);
         event.preventDefault(); canvas.focus({ preventScroll: true });
         instance.drag = { id: event.pointerId, start: point, last: point, view: { x: copy(instance.context.view.x), y: copy(instance.context.view.y) }, moved: false };
         canvas.setPointerCapture(event.pointerId);
@@ -164,7 +263,7 @@
       };
       canvas.onpointermove = event => {
         const drag = instance.drag;
-        if (!drag || drag.id !== event.pointerId) { if (!drag) instance.context.showTooltip(event); return; }
+        if (!drag || drag.id !== event.pointerId) { if (!drag) { instance.context.showTooltip(event); hoverTime(instance, event); } return; }
         event.preventDefault();
         const point = localPoint(instance, event), { plot, config, full } = instance.context;
         drag.last = point;
@@ -192,16 +291,18 @@
           if (x || y) commit(instance, { x: x || drag.view.x, y: y || drag.view.y });
         } else if (!drag.moved) instance.context.showTooltip(event);
         cancelDrag(instance);
+        hoverTime(instance, event);
       };
       canvas.onpointercancel = () => cancelDrag(instance);
       canvas.onlostpointercapture = () => { if (instance.drag) cancelDrag(instance); };
-      canvas.onpointerleave = () => { if (!instance.drag) instance.context.hideTooltip(); };
+      canvas.onpointerleave = () => { if (!instance.drag) { instance.context.hideTooltip(); if (linked(instance)) scheduleCursor(null, false); } };
       canvas.ondblclick = event => { if (localPoint(instance, event).inside) { event.preventDefault(); cancelDrag(instance); resetView(instance); } };
-      canvas.addEventListener('wheel', event => {
+      instance.onWheel = event => {
         if (!event.ctrlKey || !localPoint(instance, event).inside) return;
         event.preventDefault(); cancelDrag(instance);
         zoom(instance, Math.exp(Math.max(-100, Math.min(100, event.deltaY)) * .006), fractions(instance, localPoint(instance, event)));
-      }, { passive: false });
+      };
+      canvas.addEventListener('wheel', instance.onWheel, { passive: false });
       canvas.onkeydown = event => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
         const { view, full, config } = instance.context;
@@ -214,10 +315,12 @@
         else return;
         event.preventDefault();
       };
+      instance.handlers = Object.fromEntries(['onpointerdown', 'onpointermove', 'onpointerup', 'onpointercancel', 'onlostpointercapture', 'onpointerleave', 'ondblclick', 'onkeydown'].map(name => [name, canvas[name]]));
       updateStatus(instance);
+      updateCursor(instance);
     }
 
-    return { attach, getView, beginRender, reset };
+    return { attach, getView, beginRender, reset, setTimeRange, focusTime, inspectTime };
   }
 
   root.CtdChartInteractions = { create };

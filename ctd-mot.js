@@ -104,5 +104,102 @@
     return { rows, stats, sourceStats };
   }
 
-  return { analyze };
+  function inspect(rows, options = {}) {
+    const references = Array.isArray(options.referencePositions)
+      ? options.referencePositions.filter(Number.isFinite) : [0, 94];
+    const jumpThreshold = Number.isFinite(options.positionJumpThreshold) && options.positionJumpThreshold > 0
+      ? options.positionJumpThreshold : 10;
+    const inspected = [];
+    const events = [];
+    const stats = {
+      targetChangeCount: 0,
+      positionIncreaseCount: 0,
+      positionDecreaseCount: 0,
+      observedReversals: 0,
+      maxAbsError: null,
+      breakCount: 0,
+      suspectedResetCount: 0
+    };
+    let previous = null;
+    let lastPositionDirection = null;
+
+    function event(kind, row, from, to) {
+      return {
+        kind,
+        time: row.time,
+        previousTime: previous.time,
+        index: row.index,
+        source: row.source,
+        from,
+        to,
+        delta: to - from,
+        position: row.position,
+        error: row.error,
+        requestedDirection: row.requestedDirection
+      };
+    }
+
+    for (const original of rows || []) {
+      const hasPosition = Number.isFinite(original.position);
+      const hasTarget = Number.isFinite(original.target);
+      const targetDifference = hasPosition && hasTarget ? original.target - original.position : null;
+      const row = {
+        ...original,
+        breakBefore: false,
+        breakReason: null,
+        positionDelta: null,
+        positionDirection: 'unknown',
+        // This is a recorded target relationship, not evidence of motor power.
+        requestedDirection: targetDifference === null ? 'unknown'
+          : targetDifference > 0 ? 'down' : targetDifference < 0 ? 'up' : 'matched'
+      };
+      if (Number.isFinite(row.error)) {
+        const magnitude = Math.abs(row.error);
+        if (stats.maxAbsError === null || magnitude > stats.maxAbsError) stats.maxAbsError = magnitude;
+      }
+
+      if (!previous) row.breakReason = 'first-row';
+      else if (row.source !== previous.source) row.breakReason = 'source-change';
+      else if (!Number.isInteger(row.index) || !Number.isInteger(previous.index) || row.index !== previous.index + 1) {
+        row.breakReason = 'index-gap';
+      } else if (!Number.isFinite(row.time) || !Number.isFinite(previous.time)) row.breakReason = 'invalid-time';
+      else if (row.time <= previous.time) row.breakReason = 'non-increasing-time';
+      else if (row.gapBefore) row.breakReason = 'gap';
+      else if (!hasPosition || !Number.isFinite(previous.position)) row.breakReason = 'missing-position';
+
+      if (!row.breakReason) {
+        const difference = row.position - previous.position;
+        // Reference endpoints are firmware clues. A large jump can be a reset
+        // or reference update; this heuristic never establishes a hard limit.
+        if (references.includes(row.position) && Math.abs(difference) >= jumpThreshold) {
+          row.breakReason = 'position-jump';
+          events.push(event('position-jump', row, previous.position, row.position));
+          stats.suspectedResetCount++;
+        } else {
+          row.positionDelta = difference;
+          row.positionDirection = difference > 0 ? 'down' : difference < 0 ? 'up' : 'steady';
+          if (difference > 0) stats.positionIncreaseCount++;
+          else if (difference < 0) stats.positionDecreaseCount++;
+          if (difference !== 0) {
+            if (lastPositionDirection !== null && lastPositionDirection !== row.positionDirection) stats.observedReversals++;
+            lastPositionDirection = row.positionDirection;
+          }
+        }
+      }
+
+      row.breakBefore = row.breakReason !== null;
+      if (row.breakBefore) {
+        stats.breakCount++;
+        lastPositionDirection = null;
+      } else if (hasTarget && Number.isFinite(previous.target) && row.target !== previous.target) {
+        events.push(event('target-change', row, previous.target, row.target));
+        stats.targetChangeCount++;
+      }
+      inspected.push(row);
+      previous = row;
+    }
+    return { rows: inspected, events, stats };
+  }
+
+  return { analyze, inspect };
 }));
